@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 
 namespace CurseWork
 {
@@ -14,3 +14,4 @@ namespace CurseWork
         }
     }
 }
+

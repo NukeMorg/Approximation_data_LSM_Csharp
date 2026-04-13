@@ -1,12 +1,236 @@
 ﻿<Window x:Class="CurseWork.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CurseWork"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        
-    </Grid>
+        Title="Полиномиальная регрессия"
+        Width="1200"
+        Height="700"
+        MinWidth="1200"
+        MinHeight="700"
+        WindowStartupLocation="CenterScreen">
+
+    <DockPanel>
+
+        <!-- ===================== MENU ===================== -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="Файл">
+                <MenuItem Header="Открыть…" />
+                <MenuItem Header="Сохранить проект" />
+                <Separator/>
+                <MenuItem Header="Выход" />
+            </MenuItem>
+            <MenuItem Header="Правка">
+                <MenuItem Header="Копировать график" />
+                <MenuItem Header="Настройки" />
+            </MenuItem>
+            <MenuItem Header="Вид">
+                <MenuItem Header="Светлая тема" />
+                <MenuItem Header="Тёмная тема" />
+            </MenuItem>
+            <MenuItem Header="Справка">
+                <MenuItem Header="О программе" />
+                <MenuItem Header="Руководство" />
+            </MenuItem>
+        </Menu>
+
+        <!-- ===================== STATUS BAR ===================== -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem Content="Готово" />
+            <Separator/>
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Прогресс:" Margin="0,0,5,0"/>
+                    <ProgressBar Width="200" Height="16" Value="100"/>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- ===================== MAIN GRID ===================== -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="350"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- =================================================== -->
+            <!-- LEFT PANEL -->
+            <!-- =================================================== -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10">
+
+                    <!-- Источник данных -->
+                    <GroupBox Header="📂 Источник данных" Margin="0,0,0,10">
+                        <StackPanel Margin="8">
+
+                            <ComboBox Margin="0,0,0,5">
+                                <ComboBoxItem Content="Файл (CSV, Excel, TXT)" IsSelected="True"/>
+                                <ComboBoxItem Content="База данных"/>
+                                <ComboBoxItem Content="Ручной ввод"/>
+                            </ComboBox>
+
+                            <TextBox Text="/dataset.csv" Margin="0,0,0,5"/>
+
+                            <ComboBox Margin="0,0,0,5">
+                                <ComboBoxItem Content="Запятая (,)" IsSelected="True"/>
+                                <ComboBoxItem Content="Точка с запятой (;)"/>
+                                <ComboBoxItem Content="Табуляция"/>
+                                <ComboBoxItem Content="Пробел"/>
+                            </ComboBox>
+
+                            <CheckBox Content="Первая строка содержит заголовки" IsChecked="True"/>
+
+                            <Separator Margin="5"/>
+
+                            <TextBlock Text="Переменная X:"/>
+                            <ComboBox Margin="0,0,0,5"/>
+
+                            <TextBlock Text="Переменная Y:"/>
+                            <ComboBox Margin="0,0,0,5"/>
+
+                            <TextBlock Text="Переменная Z (опционально):"/>
+                            <ComboBox Margin="0,0,0,5"/>
+
+                            <Button Content="🔄 Обновить выбор" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Предпросмотр -->
+                    <GroupBox Header="👀 Предпросмотр (первые 10 записей)" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <DataGrid Height="150"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Width="40"/>
+                                    <DataGridTextColumn Header="X"/>
+                                    <DataGridTextColumn Header="Y"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Button Content="📋 Показать все данные" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <!-- Настройка модели -->
+                    <GroupBox Header="⚙️ Настройка модели">
+                        <StackPanel Margin="8">
+
+                            <TextBlock Text="Степень полинома"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Slider Minimum="1" Maximum="15" Width="150"/>
+                                <TextBox Width="40" Margin="5,0,0,0"/>
+                            </StackPanel>
+
+                            <CheckBox Content="Автоматически подобрать степень" Margin="0,5,0,0"/>
+
+                            <TextBlock Text="Метод оценивания" Margin="0,5,0,0"/>
+                            <ComboBox>
+                                <ComboBoxItem Content="OLS" IsSelected="True"/>
+                                <ComboBoxItem Content="WLS"/>
+                                <ComboBoxItem Content="GLS"/>
+                            </ComboBox>
+
+                            <CheckBox Content="Показывать доверительный интервал (95%)" Margin="0,5,0,0"/>
+                            <CheckBox Content="Стандартизировать переменные"/>
+
+                            <Button Content="▶️ Построить модель"
+                                    Height="40"
+                                    Margin="0,10,0,0"
+                                    Background="#4CAF50"
+                                    Foreground="White"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- =================================================== -->
+            <!-- CENTER PANEL -->
+            <!-- =================================================== -->
+            <Grid Grid.Column="1" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="220"/>
+                </Grid.RowDefinitions>
+
+                <!-- Toolbar -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                    <ToggleButton Content="2D" IsChecked="True" Width="40"/>
+                    <ToggleButton Content="3D" Width="40" Margin="5,0,0,0"/>
+
+                    <ComboBox Width="180" Margin="10,0,0,0">
+                        <ComboBoxItem Content="Точки + линия" IsSelected="True"/>
+                        <ComboBoxItem Content="Точки"/>
+                        <ComboBoxItem Content="Линия"/>
+                    </ComboBox>
+
+                    <CheckBox Content="Сетка" Margin="10,0,0,0" IsChecked="True"/>
+                    <Button Content="📷 Экспорт графика" Margin="10,0,0,0"/>
+                </StackPanel>
+
+                <!-- Plot placeholder -->
+                <Border Grid.Row="1"
+                        BorderBrush="Gray"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <TextBlock Text="Здесь будет график (Matplotlib / OxyPlot / LiveCharts)"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="Gray"/>
+                </Border>
+
+                <!-- Tabs -->
+                <TabControl Grid.Row="2" Margin="0,5,0,0">
+                    <TabItem Header="📊 Таблица данных">
+                        <DataGrid AutoGenerateColumns="True"/>
+                    </TabItem>
+                    <TabItem Header="📉 График остатков"/>
+                    <TabItem Header="📈 Q-Q Plot"/>
+                </TabControl>
+            </Grid>
+
+            <!-- =================================================== -->
+            <!-- RIGHT PANEL -->
+            <!-- =================================================== -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10">
+
+                    <GroupBox Header="🧮 Уравнение модели" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <TextBlock Text="y = 2.34 + 1.56·x − 0.07·x²"
+                                       FontSize="14"
+                                       FontWeight="Bold"/>
+                            <Button Content="📋 Копировать" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="📌 Коэффициенты" Margin="0,0,0,10">
+                        <DataGrid Height="150" AutoGenerateColumns="True"/>
+                    </GroupBox>
+
+                    <GroupBox Header="📊 Метрики модели" Margin="0,0,0,10">
+                        <StackPanel Margin="5">
+                            <TextBlock Text="MSE: 4.321"/>
+                            <TextBlock Text="RMSE: 2.078"/>
+                            <TextBlock Text="R²: 0.874"/>
+                            <TextBlock Text="Adj R²: 0.861"/>
+                            <TextBlock Text="AIC: 123.4"/>
+                            <TextBlock Text="BIC: 130.2"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="💾 Экспорт">
+                        <StackPanel Margin="5">
+                            <Button Content="📄 Сохранить отчёт (PDF)" Margin="0,0,0,5"/>
+                            <Button Content="💾 Сохранить модель" Margin="0,0,0,5"/>
+                            <Button Content="📊 Экспорт предсказаний"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                </StackPanel>
+            </ScrollViewer>
+
+        </Grid>
+    </DockPanel>
 </Window>

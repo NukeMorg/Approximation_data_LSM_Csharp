@@ -6,6 +6,7 @@ namespace CurseWork;
 public class MainViewModel : INotifyPropertyChanged
 {
     private string _regressionEquation = string.Empty;
+    private string _statusText = "Готово";
     private double _mse;
     private double _rmse;
     private double _r2;
@@ -15,6 +16,12 @@ public class MainViewModel : INotifyPropertyChanged
     {
         get => _regressionEquation;
         set => Set(ref _regressionEquation, value);
+    }
+
+    public string StatusText
+    {
+        get => _statusText;
+        set => Set(ref _statusText, value);
     }
 
     public double MSE

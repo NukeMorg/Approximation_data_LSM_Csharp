@@ -1,23 +1,26 @@
 <Window x:Class="CurseWork.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:oxy="http://oxyplot.org/wpf"
+        xmlns:helix="http://helix-toolkit.org/wpf"
         Title="Полиномиальная регрессия"
         Width="1200"
         Height="700"
         MinWidth="1100"
         MinHeight="650"
         WindowStartupLocation="CenterScreen"
-        FontSize="13">
+        FontSize="13"
+        Loaded="MainWindow_OnLoaded">
 
     <DockPanel>
 
         <!-- ================= МЕНЮ ================= -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Файл">
-                <MenuItem Header="Открыть данные"/>
-                <MenuItem Header="Сохранить результаты"/>
+                <MenuItem Header="Открыть данные" Click="MenuOpen_OnClick"/>
+                <MenuItem Header="Сохранить результаты" Click="MenuSave_OnClick"/>
                 <Separator/>
-                <MenuItem Header="Выход"/>
+                <MenuItem Header="Выход" Click="MenuExit_OnClick"/>
             </MenuItem>
             <MenuItem Header="Вид">
                 <MenuItem Header="Светлая тема"/>
@@ -30,10 +33,10 @@
 
         <!-- ================= СТАТУС ================= -->
         <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem Content="Готово"/>
+            <StatusBarItem Content="{Binding StatusText}"/>
             <Separator/>
             <StatusBarItem HorizontalAlignment="Right">
-                <ProgressBar Width="180" Height="14"/>
+                <ProgressBar x:Name="BusyProgress" Width="180" Height="14" IsIndeterminate="True" Visibility="Collapsed"/>
             </StatusBarItem>
         </StatusBar>
 
@@ -56,7 +59,7 @@
                         <StackPanel Margin="8">
 
                             <TextBlock Text="Тип источника данных"/>
-                            <ComboBox Height="24" Margin="0,2,0,6">
+                            <ComboBox x:Name="SourceTypeCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0">
                                 <ComboBoxItem Content="CSV / TXT файл"/>
                                 <ComboBoxItem Content="Excel файл"/>
                                 <ComboBoxItem Content="База данных (SQLite)"/>
@@ -64,37 +67,39 @@
 
                             <TextBlock Text="Путь к файлу / строка подключения"/>
                             <DockPanel Margin="0,2,0,6">
-                                <TextBox Width="200"/>
-                                <Button Content="..." Width="26" Margin="4,0,0,0"/>
+                                <TextBox x:Name="SourcePathTextBox" Width="200"/>
+                                <Button Content="..." Width="26" Margin="4,0,0,0" Click="BrowseSource_OnClick"/>
                             </DockPanel>
 
-                            <CheckBox Content="Первая строка содержит заголовки"/>
+                            <CheckBox x:Name="HasHeadersCheckBox" Content="Первая строка содержит заголовки" IsChecked="True"/>
 
                             <Separator Margin="6"/>
 
                             <TextBlock Text="Независимая переменная (X)"/>
-                            <ComboBox Height="24" Margin="0,2,0,6"/>
+                            <ComboBox x:Name="XColumnCombo" Height="24" Margin="0,2,0,6"/>
 
                             <TextBlock Text="Зависимая переменная (Y)"/>
-                            <ComboBox Height="24" Margin="0,2,0,6"/>
+                            <ComboBox x:Name="YColumnCombo" Height="24" Margin="0,2,0,6"/>
 
                             <TextBlock Text="Дополнительная переменная (Z, при наличии)"/>
-                            <ComboBox Height="24" Margin="0,2,0,6"/>
+                            <ComboBox x:Name="ZColumnCombo" Height="24" Margin="0,2,0,6"/>
 
                             <Button Content="Загрузить данные"
                                     Height="28"
-                                    Margin="0,6,0,0"/>
+                                    Margin="0,6,0,0"
+                                    Click="LoadData_OnClick"/>
                         </StackPanel>
                     </GroupBox>
 
                     <!-- ===== Предпросмотр ===== -->
                     <GroupBox Header="Предпросмотр данных" Margin="0,0,0,10">
                         <StackPanel Margin="6">
-                            <DataGrid Height="150"
+                            <DataGrid x:Name="PreviewGrid" Height="150"
                                       IsReadOnly="True"
                                       AutoGenerateColumns="True"/>
                             <Button Content="Показать все данные"
-                                    Margin="0,6,0,0"/>
+                                    Margin="0,6,0,0"
+                                    Click="ShowAllData_OnClick"/>
                         </StackPanel>
                     </GroupBox>
 
@@ -104,16 +109,17 @@
 
                             <TextBlock Text="Степень полинома"/>
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,6">
-                                <Slider Minimum="1" Maximum="15" Width="160"/>
-                                <TextBox Width="40" Margin="6,0,0,0"/>
+                                <Slider x:Name="DegreeSlider" Minimum="1" Maximum="15" Width="160" Value="3" ValueChanged="DegreeSlider_OnValueChanged"/>
+                                <TextBox x:Name="DegreeTextBox" Width="40" Margin="6,0,0,0" Text="3"/>
                             </StackPanel>
 
                             <CheckBox Content="Автоматический подбор степени"/>
 
                             <TextBlock Text="Метод аппроксимации" Margin="0,6,0,0"/>
-                            <ComboBox Height="24" Margin="0,2,0,6">
-                                <ComboBoxItem Content="Метод наименьших квадратов"/>
-                                <ComboBoxItem Content="Взвешенный МНК"/>
+                            <ComboBox x:Name="MethodCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0">
+                                <ComboBoxItem Content="OLS"/>
+                                <ComboBoxItem Content="WLS"/>
+                                <ComboBoxItem Content="GLS"/>
                             </ComboBox>
 
                             <CheckBox Content="Стандартизация данных"/>
@@ -121,7 +127,8 @@
 
                             <Button Content="Построить модель"
                                     Height="30"
-                                    Margin="0,8,0,0"/>
+                                    Margin="0,8,0,0"
+                                    Click="BuildModel_OnClick"/>
                         </StackPanel>
                     </GroupBox>
 
@@ -139,19 +146,24 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                    <ToggleButton Content="2D" Width="40" IsChecked="True"/>
-                    <ToggleButton Content="3D" Width="40" Margin="4,0,0,0"/>
+                    <ToggleButton x:Name="Toggle2D" Content="2D" Width="40" IsChecked="True" Checked="ToggleMode_OnChanged" Unchecked="ToggleMode_OnChanged"/>
+                    <ToggleButton x:Name="Toggle3D" Content="3D" Width="40" Margin="4,0,0,0" Checked="ToggleMode_OnChanged" Unchecked="ToggleMode_OnChanged"/>
                     <CheckBox Content="Показать сетку" Margin="10,0,0,0"/>
                     <Button Content="Экспорт графика" Margin="10,0,0,0"/>
                 </StackPanel>
 
                 <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
-                    <Grid x:Name="PlotHost"/>
+                    <Grid x:Name="PlotHost">
+                        <oxy:PlotView x:Name="Plot2D" />
+                        <helix:HelixViewport3D x:Name="Plot3D" Visibility="Collapsed" ZoomExtentsWhenLoaded="True">
+                            <helix:DefaultLights />
+                        </helix:HelixViewport3D>
+                    </Grid>
                 </Border>
 
                 <TabControl Grid.Row="2" Margin="0,6,0,0">
                     <TabItem Header="Таблица данных">
-                        <DataGrid AutoGenerateColumns="True"/>
+                        <DataGrid x:Name="FullDataGrid" AutoGenerateColumns="True" CellEditEnding="FullDataGrid_OnCellEditEnding"/>
                     </TabItem>
                     <TabItem Header="Остатки"/>
                     <TabItem Header="Q-Q график"/>

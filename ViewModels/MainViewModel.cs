@@ -1,21 +1,57 @@
-namespace CurseWork
-{
-    public class MainViewModel
-    {
-        public string RegressionEquation { get; set; }
-        public double MSE { get; set; }
-        public double RMSE { get; set; }
-        public double R2 { get; set; }
-        public double AdjustedR2 { get; set; }
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
-        public MainViewModel()
-        {
-            RegressionEquation = string.Empty;
-            MSE = 0;
-            RMSE = 0;
-            R2 = 0;
-            AdjustedR2 = 0;
-        }
+namespace CurseWork;
+
+public class MainViewModel : INotifyPropertyChanged
+{
+    private string _regressionEquation = string.Empty;
+    private double _mse;
+    private double _rmse;
+    private double _r2;
+    private double _adjustedR2;
+
+    public string RegressionEquation
+    {
+        get => _regressionEquation;
+        set => Set(ref _regressionEquation, value);
+    }
+
+    public double MSE
+    {
+        get => _mse;
+        set => Set(ref _mse, value);
+    }
+
+    public double RMSE
+    {
+        get => _rmse;
+        set => Set(ref _rmse, value);
+    }
+
+    public double R2
+    {
+        get => _r2;
+        set => Set(ref _r2, value);
+    }
+
+    public double AdjustedR2
+    {
+        get => _adjustedR2;
+        set => Set(ref _adjustedR2, value);
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void RaisePropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    protected bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
+    {
+        if (Equals(field, value)) return false;
+        field = value;
+        RaisePropertyChanged(name);
+        return true;
     }
 }
 

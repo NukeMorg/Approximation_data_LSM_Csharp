@@ -104,7 +104,7 @@
                             <CheckBox Content="Автоматический подбор степени"/>
 
                             <TextBlock Text="Метод аппроксимации" Margin="0,6,0,0"/>
-                            <ComboBox x:Name="MethodCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0">
+                            <ComboBox x:Name="MethodCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0" SelectionChanged="MethodCombo_SelectionChanged">
                                 <ComboBoxItem Content="OLS"/>
                                 <ComboBoxItem Content="WLS"/>
                                 <ComboBoxItem Content="GLS"/>

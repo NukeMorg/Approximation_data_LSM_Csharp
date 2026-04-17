@@ -226,6 +226,71 @@ public partial class MainWindow : Window
         _vm.StatusText = " Данные изменены. Сохраните изменения или загрузите заново.";
     }
 
+    private void MethodCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_x == null) return;
+
+        var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString();
+        if (method == "WLS")
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Выберите файл весов (txt, csv, xlsx, db)",
+                Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
+            };
+            if (dlg.ShowDialog(this) == true)
+            {
+                try
+                {
+                    _weights = DatasetReader.LoadVector(dlg.FileName, _x.Length);
+                    _vm.StatusText = $"Загружены веса из {dlg.FileName}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка загрузки весов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _weights = null;
+                }
+            }
+            else
+            {
+                _weights = null; // будут использованы единичные веса
+                _vm.StatusText = "Используются единичные веса (WLS)";
+            }
+        }
+        else if (method == "GLS")
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Выберите файл ковариационной матрицы (txt, csv, xlsx, db)",
+                Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
+            };
+            if (dlg.ShowDialog(this) == true)
+            {
+                try
+                {
+                    _cov = DatasetReader.LoadMatrix(dlg.FileName, _x.Length);
+                    _vm.StatusText = $"Загружена ковариационная матрица из {dlg.FileName}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка загрузки матрицы: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _cov = null;
+                }
+            }
+            else
+            {
+                _cov = null; // будет использована единичная матрица
+                _vm.StatusText = "Используется единичная ковариационная матрица (GLS)";
+            }
+        }
+        else // OLS
+        {
+            _weights = null;
+            _cov = null;
+            _vm.StatusText = "Метод OLS";
+        }
+    }
+
     private void LoadFromPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -236,6 +301,8 @@ public partial class MainWindow : Window
         try
         {
             var loaded = _datasetReader.LoadAuto(path, previewRows: 200);
+            _weights = null;
+            _cov = null;
             _table = loaded.RawTable;
             _vm.Coefficients.Clear();
             _vm.Predictions.Clear();

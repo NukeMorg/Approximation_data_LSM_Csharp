@@ -17,6 +17,7 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Файл">
                 <MenuItem Header="Открыть данные" Click="MenuOpen_OnClick"/>
+                <MenuItem Header="Загрузить модель" Click="MenuLoadModel_OnClick"/>
                 <MenuItem Header="Сохранить результаты" Click="MenuSave_OnClick"/>
                 <Separator/>
                 <MenuItem Header="Выход" Click="MenuExit_OnClick"/>
@@ -97,11 +98,11 @@
 
                             <TextBlock Text="Степень полинома"/>
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,6">
-                                <Slider x:Name="DegreeSlider" Minimum="1" Maximum="15" Width="160" Value="3" ValueChanged="DegreeSlider_OnValueChanged"/>
+                                <Slider x:Name="DegreeSlider" Minimum="1" Maximum="10" Width="160" Value="3"/>
                                 <TextBox x:Name="DegreeTextBox" Width="40" Margin="6,0,0,0" Text="3"/>
                             </StackPanel>
 
-                            <CheckBox Content="Автоматический подбор степени"/>
+                            <CheckBox x:Name="AutoDegreeCheckBox" Content="Автоматический подбор степени"/>
 
                             <TextBlock Text="Метод аппроксимации" Margin="0,6,0,0"/>
                             <ComboBox x:Name="MethodCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0" SelectionChanged="MethodCombo_SelectionChanged">
@@ -110,8 +111,8 @@
                                 <ComboBoxItem Content="GLS"/>
                             </ComboBox>
 
-                            <CheckBox Content="Стандартизация данных"/>
-                            <CheckBox Content="Расчёт доверительных интервалов"/>
+                            <CheckBox x:Name="StandardizeCheckBox" Content="Стандартизация данных"/>
+                            <CheckBox x:Name="ConfidenceCheckBox" Content="Расчёт доверительных интервалов"/>
 
                             <Button Content="Построить модель"
                                     Height="30"
@@ -142,21 +143,23 @@
                 </Border>
             </Grid>
 
+            <!-- ================================================= -->
             <!-- ПРАВАЯ ПАНЕЛЬ -->
+            <!-- ================================================= -->
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
 
                     <GroupBox Header="Уравнение регрессии" Margin="0,0,0,10">
                         <TextBlock Margin="6"
-                       FontFamily="Consolas"
-                       Text="{Binding RegressionEquation}"/>
+                                   FontFamily="Consolas"
+                                   Text="{Binding RegressionEquation}"/>
                     </GroupBox>
 
                     <GroupBox Header="Коэффициенты" Margin="0,0,0,10">
                         <DataGrid ItemsSource="{Binding Coefficients}"
-                      AutoGenerateColumns="False"
-                      Height="160"
-                      IsReadOnly="True">
+                                  AutoGenerateColumns="False"
+                                  Height="160"
+                                  IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Индекс" Binding="{Binding Index}" Width="*"/>
                                 <DataGridTextColumn Header="Значение" Binding="{Binding Value, StringFormat='G6'}" Width="2*"/>
@@ -166,9 +169,9 @@
 
                     <GroupBox Header="Предсказанные значения" Margin="0,0,0,10">
                         <DataGrid ItemsSource="{Binding Predictions}"
-                      AutoGenerateColumns="False"
-                      Height="160"
-                      IsReadOnly="True">
+                                  AutoGenerateColumns="False"
+                                  Height="160"
+                                  IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat='0.######'}" Width="*"/>
                                 <DataGridTextColumn Header="Y (предск.)" Binding="{Binding PredictedY, StringFormat='0.######'}" Width="*"/>

@@ -46,6 +46,12 @@ public partial class MainWindow : Window
         DataContext = _vm;
         Plot2D.Model = CreateEmptyPlotModel();
         ApplyGridVisibility();
+
+        // Синхронизация слайдера и текстового поля степени
+        DegreeSlider.ValueChanged += DegreeSlider_ValueChanged;
+        DegreeTextBox.TextChanged += DegreeTextBox_TextChanged;
+        DegreeSlider.Value = 3;
+        DegreeTextBox.Text = "3";
     }
 
     private void MainWindow_OnLoaded(object sender, RoutedEventArgs e) { }
@@ -63,10 +69,58 @@ public partial class MainWindow : Window
         LoadFromPath(SourcePathTextBox.Text);
     }
 
-    private void DegreeSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void DegreeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (DegreeTextBox is null) return;
-        DegreeTextBox.Text = ((int)Math.Round(DegreeSlider.Value)).ToString(CultureInfo.InvariantCulture);
+        if (DegreeTextBox == null) return;
+        int newValue = (int)Math.Round(e.NewValue);
+        if (DegreeTextBox.Text != newValue.ToString())
+            DegreeTextBox.Text = newValue.ToString();
+    }
+
+    private void DegreeTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (DegreeSlider == null) return;
+        if (int.TryParse(DegreeTextBox.Text, out int degree) && degree >= 1)
+        {
+            if (Math.Abs(DegreeSlider.Value - degree) > 0.1)
+                DegreeSlider.Value = degree;
+        }
+    }
+
+    private int ParseDegree()
+    {
+        if (int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d >= 1)
+            return d;
+        return 3;
+    }
+
+    private int AutoSelectDegree(double[] x, double[] y, out double bestMetric)
+    {
+        int maxDegree = (int)DegreeSlider.Maximum;
+        int bestDegree = 1;
+        double bestAdjR2 = double.MinValue;
+
+        for (int d = 1; d <= maxDegree; d++)
+        {
+            var reg = new PolynomialRegression(x, y, d);
+            var coeffs = reg.Ols();
+            var yPred = reg.Predict(x, coeffs);
+            var metrics = reg.CalculateMetrics(y, yPred);
+            double adjR2 = metrics.AdjustedR2;
+
+            if (adjR2 > bestAdjR2)
+            {
+                bestAdjR2 = adjR2;
+                bestDegree = d;
+            }
+            else
+            {
+                // При первом же ухудшении прекращаем перебор
+                break;
+            }
+        }
+        bestMetric = bestAdjR2;
+        return bestDegree;
     }
 
     private void BuildModel_OnClick(object sender, RoutedEventArgs e)
@@ -75,10 +129,23 @@ public partial class MainWindow : Window
         {
             if (_table is null) throw new InvalidOperationException("Сначала загрузите данные.");
             LoadArraysFromTable();
-
             if (_x is null || _y is null) throw new InvalidOperationException("Не удалось выделить X и Y.");
 
-            var degree = ParseDegree();
+            int degree;
+            if (AutoDegreeCheckBox.IsChecked == true)
+            {
+                BusyProgress.Visibility = Visibility.Visible;
+                degree = AutoSelectDegree(_x, _y, out double bestMetric);
+                BusyProgress.Visibility = Visibility.Collapsed;
+                _vm.StatusText = $"Автоподбор: степень {degree}, AdjR²={bestMetric:F4}";
+                DegreeSlider.Value = degree;
+                DegreeTextBox.Text = degree.ToString();
+            }
+            else
+            {
+                degree = ParseDegree();
+            }
+
             var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString() ?? "OLS";
 
             var reg = new PolynomialRegression(_x, _y, degree);
@@ -99,14 +166,81 @@ public partial class MainWindow : Window
             _vm.RegressionEquation = FormatEquation(_coeffs);
             _vm.StatusText = $"OK ({method}). MSE={_vm.MSE:F4}, AdjR²={_vm.AdjustedR2:F4}";
 
-            Plot2D.Model = Plot2DModel(_x, _y, _yPred);
-            ApplyGridVisibility();
             _vm.UpdateCoefficients(_coeffs);
             _vm.UpdatePredictions(_x, _yPred);
+
+            Plot2D.Model = Plot2DModel(_x, _y, _yPred);
+            ApplyGridVisibility();
         }
         catch (Exception ex)
         {
+            BusyProgress.Visibility = Visibility.Collapsed;
             MessageBox.Show(this, ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void MethodCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_x == null) return;
+
+        var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString();
+        if (method == "WLS")
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Выберите файл весов (txt, csv, xlsx, db)",
+                Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
+            };
+            if (dlg.ShowDialog(this) == true)
+            {
+                try
+                {
+                    _weights = DatasetReader.LoadVector(dlg.FileName, _x.Length);
+                    _vm.StatusText = $"Загружены веса из {dlg.FileName}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка загрузки весов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _weights = null;
+                }
+            }
+            else
+            {
+                _weights = null;
+                _vm.StatusText = "Используются единичные веса (WLS)";
+            }
+        }
+        else if (method == "GLS")
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Выберите файл ковариационной матрицы (txt, csv, xlsx, db)",
+                Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
+            };
+            if (dlg.ShowDialog(this) == true)
+            {
+                try
+                {
+                    _cov = DatasetReader.LoadMatrix(dlg.FileName, _x.Length);
+                    _vm.StatusText = $"Загружена ковариационная матрица из {dlg.FileName}";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка загрузки матрицы: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _cov = null;
+                }
+            }
+            else
+            {
+                _cov = null;
+                _vm.StatusText = "Используется единичная ковариационная матрица (GLS)";
+            }
+        }
+        else
+        {
+            _weights = null;
+            _cov = null;
+            _vm.StatusText = "Метод OLS";
         }
     }
 
@@ -186,6 +320,7 @@ public partial class MainWindow : Window
             MessageBox.Show($"Ошибка загрузки модели: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
     private void ExportModel()
     {
         if (_coeffs is null || _yPred is null || _metrics is null)
@@ -226,71 +361,6 @@ public partial class MainWindow : Window
         _vm.StatusText = " Данные изменены. Сохраните изменения или загрузите заново.";
     }
 
-    private void MethodCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_x == null) return;
-
-        var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString();
-        if (method == "WLS")
-        {
-            var dlg = new OpenFileDialog
-            {
-                Title = "Выберите файл весов (txt, csv, xlsx, db)",
-                Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
-            };
-            if (dlg.ShowDialog(this) == true)
-            {
-                try
-                {
-                    _weights = DatasetReader.LoadVector(dlg.FileName, _x.Length);
-                    _vm.StatusText = $"Загружены веса из {dlg.FileName}";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка загрузки весов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                    _weights = null;
-                }
-            }
-            else
-            {
-                _weights = null; // будут использованы единичные веса
-                _vm.StatusText = "Используются единичные веса (WLS)";
-            }
-        }
-        else if (method == "GLS")
-        {
-            var dlg = new OpenFileDialog
-            {
-                Title = "Выберите файл ковариационной матрицы (txt, csv, xlsx, db)",
-                Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
-            };
-            if (dlg.ShowDialog(this) == true)
-            {
-                try
-                {
-                    _cov = DatasetReader.LoadMatrix(dlg.FileName, _x.Length);
-                    _vm.StatusText = $"Загружена ковариационная матрица из {dlg.FileName}";
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Ошибка загрузки матрицы: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                    _cov = null;
-                }
-            }
-            else
-            {
-                _cov = null; // будет использована единичная матрица
-                _vm.StatusText = "Используется единичная ковариационная матрица (GLS)";
-            }
-        }
-        else // OLS
-        {
-            _weights = null;
-            _cov = null;
-            _vm.StatusText = "Метод OLS";
-        }
-    }
-
     private void LoadFromPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -301,17 +371,19 @@ public partial class MainWindow : Window
         try
         {
             var loaded = _datasetReader.LoadAuto(path, previewRows: 200);
-            _weights = null;
-            _cov = null;
             _table = loaded.RawTable;
-            _vm.Coefficients.Clear();
-            _vm.Predictions.Clear();
             _tableModified = false;
 
             PreviewGrid.ItemsSource = _table.DefaultView;
 
+            _vm.Coefficients.Clear();
+            _vm.Predictions.Clear();
+
             PopulateColumnCombos(_table);
             LoadArraysFromTable();
+
+            _weights = null;
+            _cov = null;
 
             if (_x is not null && _y is not null)
             {
@@ -369,13 +441,6 @@ public partial class MainWindow : Window
         var raw = value?.ToString() ?? string.Empty;
         raw = raw.Replace(',', '.').Trim();
         return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
-    }
-
-    private int ParseDegree()
-    {
-        if (int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var d) && d >= 1)
-            return d;
-        return 3;
     }
 
     private void OfferSaveEdits()

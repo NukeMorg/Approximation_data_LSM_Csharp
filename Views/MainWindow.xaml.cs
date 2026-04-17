@@ -45,6 +45,7 @@ public partial class MainWindow : Window
         _vm = new MainViewModel { StatusText = "Готово" };
         DataContext = _vm;
         Plot2D.Model = CreateEmptyPlotModel();
+        ApplyGridVisibility(); 
     }
 
     private void MainWindow_OnLoaded(object sender, RoutedEventArgs e) { }
@@ -98,6 +99,7 @@ public partial class MainWindow : Window
             _vm.StatusText = $"OK ({method}). MSE={_vm.MSE:F4}, AdjR²={_vm.AdjustedR2:F4}";
 
             Plot2D.Model = Plot2DModel(_x, _y, _yPred);
+            ApplyGridVisibility();
         }
         catch (Exception ex)
         {
@@ -142,7 +144,10 @@ public partial class MainWindow : Window
             LoadArraysFromTable();
 
             if (_x is not null && _y is not null)
+            {
                 Plot2D.Model = Plot2DModel(_x, _y, yPred: null);
+                ApplyGridVisibility();
+            }
 
             _vm.StatusText = loaded.Message;
         }
@@ -437,6 +442,22 @@ public partial class MainWindow : Window
         {
             MessageBox.Show($"Ошибка экспорта коэффициентов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void ApplyGridVisibility()
+    {
+        if (Plot2D.Model == null) return;
+        var style = ShowGridCheckBox.IsChecked == true ? LineStyle.Solid : LineStyle.None;
+        foreach (var axis in Plot2D.Model.Axes)
+        {
+            axis.MajorGridlineStyle = style;
+        }
+        Plot2D.InvalidatePlot(true);
+    }
+
+    private void ShowGridCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        ApplyGridVisibility();
     }
 
     private void ExportPredictions_Click(object sender, RoutedEventArgs e)

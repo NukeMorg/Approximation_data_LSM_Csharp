@@ -2,7 +2,6 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:oxy="http://oxyplot.org/wpf"
-        xmlns:helix="http://helix-toolkit.org/wpf"
         Title="Полиномиальная регрессия"
         Width="1200"
         Height="700"
@@ -74,9 +73,6 @@
                             <TextBlock Text="Переменная Y"/>
                             <ComboBox x:Name="YColumnCombo" Height="24" Margin="0,2,0,6"/>
 
-                            <TextBlock Text="Дополнительная переменная (Z, при наличии)"/>
-                            <ComboBox x:Name="ZColumnCombo" Height="24" Margin="0,2,0,6"/>
-
                             <Button Content="Загрузить данные"
                                     Height="28"
                                     Margin="0,6,0,0"
@@ -88,10 +84,10 @@
                     <GroupBox Header="Предпросмотр данных" Margin="0,0,0,10">
                         <StackPanel Margin="6">
                             <DataGrid x:Name="PreviewGrid"
-                                Height="150"
-                                IsReadOnly="False"
-                                AutoGenerateColumns="True"
-                                CellEditEnding="PreviewGrid_OnCellEditEnding"/>
+                                      Height="150"
+                                      IsReadOnly="False"
+                                      AutoGenerateColumns="True"
+                                      CellEditEnding="PreviewGrid_OnCellEditEnding"/>
                         </StackPanel>
                     </GroupBox>
 
@@ -128,27 +124,21 @@
             </ScrollViewer>
 
             <!-- ================================================= -->
-            <!-- ЦЕНТР -->
+            <!-- ЦЕНТР (график) -->
             <!-- ================================================= -->
             <Grid Grid.Column="1" Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="220"/>
                 </Grid.RowDefinitions>
 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                    <ToggleButton x:Name="Toggle2D" Content="2D" Width="40" IsChecked="True" Checked="ToggleMode_OnChanged" Unchecked="ToggleMode_OnChanged"/>
-                    <ToggleButton x:Name="Toggle3D" Content="3D" Width="40" Margin="4,0,0,0" Checked="ToggleMode_OnChanged" Unchecked="ToggleMode_OnChanged"/>
                     <CheckBox Content="Показать сетку" Margin="10,0,0,0"/>
-                    <Button Content="Экспорт графика" Margin="10,0,0,0"/>
+                    <Button Content="Экспорт графика" Margin="10,0,0,0" Click="ExportPlot_Click"/>
                 </StackPanel>
 
                 <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
-                    <Grid x:Name="PlotHost">
-                        <oxy:PlotView x:Name="Plot2D" />
-                        <helix:HelixViewport3D x:Name="Plot3D" Visibility="Collapsed" />
-                    </Grid>
+                    <oxy:PlotView x:Name="Plot2D"/>
                 </Border>
             </Grid>
 
@@ -180,9 +170,9 @@
 
                     <GroupBox Header="Экспорт результатов">
                         <StackPanel Margin="6">
-                            <Button Content="Сохранить отчёт"/>
-                            <Button Content="Экспорт коэффициентов" Margin="0,4,0,0"/>
-                            <Button Content="Экспорт предсказаний" Margin="0,4,0,0"/>
+                            <Button Content="Сохранить отчёт" Click="SaveReport_Click"/>
+                            <Button Content="Экспорт коэффициентов" Margin="0,4,0,0" Click="ExportCoefficients_Click"/>
+                            <Button Content="Экспорт предсказаний" Margin="0,4,0,0" Click="ExportPredictions_Click"/>
                         </StackPanel>
                     </GroupBox>
 

@@ -33,8 +33,8 @@ public partial class MainWindow : Window
     private double[]? _y;
     private double[]? _z;
 
-    private double[]? _weights;
-    private double[,]? _cov;
+    private double[]? _weights = null;
+    private double[,]? _cov = null;
 
     private double[]? _coeffs;
     private double[]? _yPred;
@@ -67,8 +67,8 @@ public partial class MainWindow : Window
 
     private void ShowAllData_OnClick(object sender, RoutedEventArgs e)
     {
-        if (_table is null) return;
-        FullDataGrid.ItemsSource = _table.DefaultView;
+        //if (_table is null) return;
+        //FullDataGrid.ItemsSource = _table.DefaultView;
     }
 
     private void DegreeSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -110,8 +110,8 @@ public partial class MainWindow : Window
 
             // Plot
             Plot2D.Model = Plot2DModel(_x, _y, _yPred);
-            if (_z is not null)
-                Plot3DPoints(_x, _y, _z);
+            //if (_z is not null)
+            //    Plot3DPoints(_x, _y, _z);
         }
         catch (Exception ex)
         {
@@ -160,6 +160,12 @@ public partial class MainWindow : Window
         LoadFromPath(dlg.FileName);
     }
 
+    private void PreviewGrid_OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
+    {
+        _tableModified = true;
+        _vm.StatusText = " Данные изменены. Сохраните изменения или загрузите заново.";
+    }
+
     private void LoadFromPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -174,7 +180,7 @@ public partial class MainWindow : Window
             _tableModified = false;
 
             PreviewGrid.ItemsSource = _table.DefaultView;
-            FullDataGrid.ItemsSource = _table.DefaultView;
+            //FullDataGrid.ItemsSource = _table.DefaultView;
 
             PopulateColumnCombos(_table);
             LoadArraysFromTable();
@@ -182,8 +188,8 @@ public partial class MainWindow : Window
             // initial plot
             if (_x is not null && _y is not null)
                 Plot2D.Model = Plot2DModel(_x, _y, yPred: null);
-            if (_z is not null && _x is not null && _y is not null)
-                Plot3DPoints(_x, _y, _z);
+            //if (_z is not null && _x is not null && _y is not null)
+            //    Plot3DPoints(_x, _y, _z);
 
             _vm.StatusText = loaded.Message;
         }
@@ -354,19 +360,19 @@ public partial class MainWindow : Window
         return model;
     }
 
-    private void Plot3DPoints(double[] x, double[] y, double[] z)
-    {
-        Plot3D.Children.Clear();
-        Plot3D.Children.Add(new DefaultLights());
+    //private void Plot3DPoints(double[] x, double[] y, double[] z)
+    //{
+    //    Plot3D.Children.Clear();
+    //    Plot3D.Children.Add(new DefaultLights());
 
-        var group = new System.Windows.Media.Media3D.Model3DGroup();
-        var builder = new MeshBuilder(false, false);
-        for (var i = 0; i < x.Length && i < y.Length && i < z.Length; i++)
-            builder.AddSphere(new System.Windows.Media.Media3D.Point3D(x[i], y[i], z[i]), radius: 0.05, thetaDiv: 6, phiDiv: 6);
+    //    var group = new System.Windows.Media.Media3D.Model3DGroup();
+    //    var builder = new MeshBuilder(false, false);
+    //    for (var i = 0; i < x.Length && i < y.Length && i < z.Length; i++)
+    //        builder.AddSphere(new System.Windows.Media.Media3D.Point3D(x[i], y[i], z[i]), radius: 0.05, thetaDiv: 6, phiDiv: 6);
 
-        var mesh = builder.ToMesh(true);
-        group.Children.Add(new System.Windows.Media.Media3D.GeometryModel3D(mesh, Materials.Blue));
-        Plot3D.Children.Add(new System.Windows.Media.Media3D.ModelVisual3D { Content = group });
-    }
+    //    var mesh = builder.ToMesh(true);
+    //    group.Children.Add(new System.Windows.Media.Media3D.GeometryModel3D(mesh, Materials.Blue));
+    //    Plot3D.Children.Add(new System.Windows.Media.Media3D.ModelVisual3D { Content = group });
+    //}
 }
 

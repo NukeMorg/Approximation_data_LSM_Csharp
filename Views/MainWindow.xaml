@@ -58,13 +58,6 @@
                     <GroupBox Header="Источник данных" Margin="0,0,0,10">
                         <StackPanel Margin="8">
 
-                            <TextBlock Text="Тип источника данных"/>
-                            <ComboBox x:Name="SourceTypeCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0">
-                                <ComboBoxItem Content="CSV / TXT файл"/>
-                                <ComboBoxItem Content="Excel файл"/>
-                                <ComboBoxItem Content="База данных (SQLite)"/>
-                            </ComboBox>
-
                             <TextBlock Text="Путь к файлу / строка подключения"/>
                             <DockPanel Margin="0,2,0,6">
                                 <TextBox x:Name="SourcePathTextBox" Width="200"/>
@@ -75,10 +68,10 @@
 
                             <Separator Margin="6"/>
 
-                            <TextBlock Text="Независимая переменная (X)"/>
+                            <TextBlock Text="Переменная X"/>
                             <ComboBox x:Name="XColumnCombo" Height="24" Margin="0,2,0,6"/>
 
-                            <TextBlock Text="Зависимая переменная (Y)"/>
+                            <TextBlock Text="Переменная Y"/>
                             <ComboBox x:Name="YColumnCombo" Height="24" Margin="0,2,0,6"/>
 
                             <TextBlock Text="Дополнительная переменная (Z, при наличии)"/>
@@ -94,9 +87,11 @@
                     <!-- ===== Предпросмотр ===== -->
                     <GroupBox Header="Предпросмотр данных" Margin="0,0,0,10">
                         <StackPanel Margin="6">
-                            <DataGrid x:Name="PreviewGrid" Height="150"
-                                      IsReadOnly="True"
-                                      AutoGenerateColumns="True"/>
+                            <DataGrid x:Name="PreviewGrid"
+                                Height="150"
+                                IsReadOnly="False"
+                                AutoGenerateColumns="True"
+                                CellEditEnding="PreviewGrid_OnCellEditEnding"/>
                             <Button Content="Показать все данные"
                                     Margin="0,6,0,0"
                                     Click="ShowAllData_OnClick"/>
@@ -154,20 +149,10 @@
 
                 <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
                     <Grid x:Name="PlotHost">
-                        <oxy:PlotView x:Name="Plot2D" />
-                        <helix:HelixViewport3D x:Name="Plot3D" Visibility="Collapsed" ZoomExtentsWhenLoaded="True">
-                            <helix:DefaultLights />
-                        </helix:HelixViewport3D>
+                        <oxy:PlotView x:Name="Plot2D" Margin="0,0,0,-212" />
+                        <helix:HelixViewport3D x:Name="Plot3D" Visibility="Collapsed" />
                     </Grid>
                 </Border>
-
-                <TabControl Grid.Row="2" Margin="0,6,0,0">
-                    <TabItem Header="Таблица данных">
-                        <DataGrid x:Name="FullDataGrid" AutoGenerateColumns="True" CellEditEnding="FullDataGrid_OnCellEditEnding"/>
-                    </TabItem>
-                    <TabItem Header="Остатки"/>
-                    <TabItem Header="Q-Q график"/>
-                </TabControl>
             </Grid>
 
             <!-- ================================================= -->

@@ -60,6 +60,8 @@ public partial class MainWindow : Window
     private void MenuLoadModel_OnClick(object sender, RoutedEventArgs e) => ImportModel();
     private void MenuSave_OnClick(object sender, RoutedEventArgs e) => SaveResults();
     private void MenuExit_OnClick(object sender, RoutedEventArgs e) => Close();
+    private void Plot2D_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => Plot2D.ResetAllAxes();
+      
 
     private void BrowseSource_OnClick(object sender, RoutedEventArgs e) => BrowseAndLoad();
 
@@ -497,19 +499,32 @@ public partial class MainWindow : Window
     private static string FormatEquation(IReadOnlyList<double> coeffs)
     {
         if (coeffs.Count == 0) return "";
+
+        char[] superscripts = { '⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹' };
+
         var parts = new List<string>();
-        for (var i = 0; i < coeffs.Count; i++)
+        for (int i = 0; i < coeffs.Count; i++)
         {
-            var a = coeffs[i];
-            var s = a.ToString("G6", CultureInfo.InvariantCulture);
-            parts.Add(i switch
+            double a = coeffs[i];
+            if (Math.Abs(a) < 1e-15) continue;
+
+            string signPart;
+            if (parts.Count == 0)
+                signPart = a.ToString("G6", CultureInfo.InvariantCulture);
+            else
+                signPart = (a >= 0 ? "+ " : "- ") + Math.Abs(a).ToString("G6", CultureInfo.InvariantCulture);
+
+            string varPart = i switch
             {
-                0 => s,
-                1 => $"{s}·x",
-                _ => $"{s}·x^{i}"
-            });
+                0 => "",
+                1 => "·x",
+                _ => "·x" + string.Concat(i.ToString().Select(c => superscripts[c - '0']))
+            };
+
+            parts.Add(signPart + varPart);
         }
-        return "y = " + string.Join(" + ", parts);
+
+        return parts.Count == 0 ? "y = 0" : "y = " + string.Join(" ", parts);
     }
 
     private static PlotModel CreateEmptyPlotModel()

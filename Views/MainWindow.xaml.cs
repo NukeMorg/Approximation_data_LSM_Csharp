@@ -65,11 +65,6 @@ public partial class MainWindow : Window
         LoadFromPath(SourcePathTextBox.Text);
     }
 
-    private void ShowAllData_OnClick(object sender, RoutedEventArgs e)
-    {
-        //if (_table is null) return;
-        //FullDataGrid.ItemsSource = _table.DefaultView;
-    }
 
     private void DegreeSlider_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
@@ -142,11 +137,6 @@ public partial class MainWindow : Window
         Plot2D.Visibility = show3d ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void FullDataGrid_OnCellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-    {
-        _tableModified = true;
-        _vm.StatusText = "⚠ Данные изменены. Сохраните изменения или загрузите заново.";
-    }
 
     private void BrowseAndLoad()
     {

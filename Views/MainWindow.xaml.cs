@@ -45,12 +45,13 @@ public partial class MainWindow : Window
         _vm = new MainViewModel { StatusText = "Готово" };
         DataContext = _vm;
         Plot2D.Model = CreateEmptyPlotModel();
-        ApplyGridVisibility(); 
+        ApplyGridVisibility();
     }
 
     private void MainWindow_OnLoaded(object sender, RoutedEventArgs e) { }
 
     private void MenuOpen_OnClick(object sender, RoutedEventArgs e) => BrowseAndLoad();
+    private void MenuLoadModel_OnClick(object sender, RoutedEventArgs e) => ImportModel();
     private void MenuSave_OnClick(object sender, RoutedEventArgs e) => SaveResults();
     private void MenuExit_OnClick(object sender, RoutedEventArgs e) => Close();
 
@@ -113,10 +114,102 @@ public partial class MainWindow : Window
         {
             Filter = "Данные (*.txt;*.csv;*.xlsx;*.db;*.sqlite)|*.txt;*.csv;*.xlsx;*.db;*.sqlite|Все файлы (*.*)|*.*"
         };
-        if (dlg.ShowDialog(this) != true)
-            return;
+        if (dlg.ShowDialog(this) != true) return;
         SourcePathTextBox.Text = dlg.FileName;
         LoadFromPath(dlg.FileName);
+    }
+
+    private void ImportModel_Click(object sender, RoutedEventArgs e) => ImportModel();
+    private void ExportModel_Click(object sender, RoutedEventArgs e) => ExportModel();
+
+    private void ImportModel()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Filter = "JSON модель (*.json)|*.json|Все файлы (*.*)|*.*",
+            Title = "Выберите файл модели"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            var model = ModelPersistence.LoadModel(dlg.FileName);
+
+            _coeffs = model.Coefficients;
+            _metrics = new RegressionMetrics(model.MSE, model.R2Adjusted);
+            _yPred = model.Predictions;
+            _sourcePath = model.SourceFile;
+
+            if (model.X != null)
+            {
+                _x = model.X;
+            }
+            else if (_x == null)
+            {
+                MessageBox.Show("Модель не содержит координат X. Сначала загрузите данные.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            _vm.MSE = model.MSE;
+            _vm.RMSE = Math.Sqrt(model.MSE);
+            _vm.AdjustedR2 = model.R2Adjusted;
+            _vm.R2 = model.R2Adjusted;
+            _vm.RegressionEquation = FormatEquation(_coeffs);
+            _vm.StatusText = $"Модель загружена из {dlg.FileName}";
+
+            if (_x != null && _y != null)
+            {
+                Plot2D.Model = Plot2DModel(_x, _y, _yPred);
+            }
+            else if (_x != null)
+            {
+                var model2D = CreateEmptyPlotModel();
+                var line = new LineSeries { Title = "Модель", Color = OxyColor.Parse("#e74c3c"), StrokeThickness = 2 };
+                for (int i = 0; i < _x.Length && i < _yPred.Length; i++)
+                    line.Points.Add(new DataPoint(_x[i], _yPred[i]));
+                model2D.Series.Add(line);
+                Plot2D.Model = model2D;
+            }
+            ApplyGridVisibility();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки модели: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ExportModel()
+    {
+        if (_coeffs is null || _yPred is null || _metrics is null)
+        {
+            MessageBox.Show("Сначала постройте модель.", "Нет модели", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Filter = "JSON модель (*.json)|*.json|Все файлы (*.*)|*.*",
+            AddExtension = true,
+            FileName = "model"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+
+        try
+        {
+            ModelPersistence.SaveModel(
+                dlg.FileName,
+                _coeffs,
+                _metrics.Value.Mse,
+                _metrics.Value.AdjustedR2,
+                _yPred,
+                _x,
+                _sourcePath ?? "");
+            _vm.StatusText = $"Модель экспортирована: {dlg.FileName}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка экспорта модели: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void PreviewGrid_OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
@@ -242,7 +335,14 @@ public partial class MainWindow : Window
 
         if (Path.GetExtension(dlg.FileName).ToLowerInvariant() == ".json")
         {
-            _resultSaver.SaveToJson(dlg.FileName, _coeffs, _metrics.Value.Mse, _metrics.Value.AdjustedR2, _yPred, _sourcePath ?? "");
+            ModelPersistence.SaveModel(
+                dlg.FileName,
+                _coeffs,
+                _metrics.Value.Mse,
+                _metrics.Value.AdjustedR2,
+                _yPred,
+                _x,
+                _sourcePath ?? "");
         }
         else
         {
@@ -305,6 +405,20 @@ public partial class MainWindow : Window
         return model;
     }
 
+    private void ApplyGridVisibility()
+    {
+        if (Plot2D.Model == null) return;
+        var style = ShowGridCheckBox.IsChecked == true ? LineStyle.Solid : LineStyle.None;
+        foreach (var axis in Plot2D.Model.Axes)
+            axis.MajorGridlineStyle = style;
+        Plot2D.InvalidatePlot(true);
+    }
+
+    private void ShowGridCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        ApplyGridVisibility();
+    }
+
     private void ExportPlot_Click(object sender, RoutedEventArgs e)
     {
         if (Plot2D.Model == null)
@@ -323,13 +437,13 @@ public partial class MainWindow : Window
 
         try
         {
-            if (dlg.FilterIndex == 1) // PNG
+            if (dlg.FilterIndex == 1)
             {
                 var exporter = new PngExporter { Width = 800, Height = 600, Resolution = 96 };
                 using var stream = File.Create(dlg.FileName);
                 exporter.Export(Plot2D.Model, stream);
             }
-            else // SVG
+            else
             {
                 var exporter = new OxyPlot.Wpf.SvgExporter { Width = 800, Height = 600 };
                 using var stream = File.Create(dlg.FileName);
@@ -361,7 +475,7 @@ public partial class MainWindow : Window
 
         try
         {
-            if (dlg.FilterIndex == 1) // Excel
+            if (dlg.FilterIndex == 1)
             {
                 _resultSaver.SaveReportToExcel(
                     dlg.FileName,
@@ -373,7 +487,7 @@ public partial class MainWindow : Window
                     _sourcePath ?? "",
                     _vm.RegressionEquation);
             }
-            else if (dlg.FilterIndex == 2) // Word
+            else if (dlg.FilterIndex == 2)
             {
                 _resultSaver.SaveReportToWord(
                     dlg.FileName,
@@ -385,7 +499,7 @@ public partial class MainWindow : Window
                     _sourcePath ?? "",
                     _vm.RegressionEquation);
             }
-            else // Текстовый отчёт
+            else
             {
                 var sb = new StringBuilder();
                 sb.AppendLine("ОТЧЁТ ПО РЕГРЕССИОННОЙ МОДЕЛИ");
@@ -414,76 +528,6 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Ошибка сохранения отчёта: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ExportCoefficients_Click(object sender, RoutedEventArgs e)
-    {
-        if (_coeffs is null)
-        {
-            MessageBox.Show("Сначала постройте модель.", "Нет данных", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var dlg = new SaveFileDialog
-        {
-            Filter = "JSON (*.json)|*.json|Excel (*.xlsx)|*.xlsx|Word (*.docx)|*.docx|CSV (*.csv)|*.csv|TXT (*.txt)|*.txt|SQLite (*.db;*.sqlite)|*.db;*.sqlite|Все файлы (*.*)|*.*",
-            AddExtension = true,
-            FileName = "coefficients"
-        };
-        if (dlg.ShowDialog(this) != true) return;
-
-        try
-        {
-            _resultSaver.ExportCoefficients(dlg.FileName, _coeffs, _vm.RegressionEquation, _sourcePath ?? "");
-            _vm.StatusText = $"Коэффициенты экспортированы: {dlg.FileName}";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Ошибка экспорта коэффициентов: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ApplyGridVisibility()
-    {
-        if (Plot2D.Model == null) return;
-        var style = ShowGridCheckBox.IsChecked == true ? LineStyle.Solid : LineStyle.None;
-        foreach (var axis in Plot2D.Model.Axes)
-        {
-            axis.MajorGridlineStyle = style;
-        }
-        Plot2D.InvalidatePlot(true);
-    }
-
-    private void ShowGridCheckBox_Changed(object sender, RoutedEventArgs e)
-    {
-        ApplyGridVisibility();
-    }
-
-    private void ExportPredictions_Click(object sender, RoutedEventArgs e)
-    {
-        if (_yPred is null || _x is null)
-        {
-            MessageBox.Show("Сначала постройте модель.", "Нет данных", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var dlg = new SaveFileDialog
-        {
-            Filter = "JSON (*.json)|*.json|Excel (*.xlsx)|*.xlsx|Word (*.docx)|*.docx|CSV (*.csv)|*.csv|TXT (*.txt)|*.txt|SQLite (*.db;*.sqlite)|*.db;*.sqlite|Все файлы (*.*)|*.*",
-            AddExtension = true,
-            FileName = "predictions"
-        };
-        if (dlg.ShowDialog(this) != true) return;
-
-        try
-        {
-            _resultSaver.ExportPredictions(dlg.FileName, _yPred, _x, _vm.RegressionEquation, _sourcePath ?? "");
-            _vm.StatusText = $"Предсказания экспортированы: {dlg.FileName}";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Ошибка экспорта предсказаний: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }

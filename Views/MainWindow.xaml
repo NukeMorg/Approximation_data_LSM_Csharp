@@ -171,11 +171,11 @@
                     <GroupBox Header="Экспорт результатов">
                         <StackPanel Margin="6">
                             <Button Content="Сохранить отчёт" Click="SaveReport_Click"/>
-                            <Button Content="Экспорт коэффициентов" Margin="0,4,0,0" Click="ExportCoefficients_Click"/>
-                            <Button Content="Экспорт предсказаний" Margin="0,4,0,0" Click="ExportPredictions_Click"/>
+                            <Button Content="Импорт модели" Margin="0,4,0,0" Click="ImportModel_Click"/>
+                            <Button Content="Экспорт модели" Margin="0,4,0,0" Click="ExportModel_Click"/>
                         </StackPanel>
                     </GroupBox>
-
+                    
                 </StackPanel>
             </ScrollViewer>
 

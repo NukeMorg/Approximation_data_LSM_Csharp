@@ -13,7 +13,7 @@ public sealed record Dataset3DResult(double[] X, double[] Y, double[] Z);
 
 public sealed class DatasetReader
 {
-    public DatasetLoadResult LoadAuto(string filePath, int? previewRows = null)
+    public DatasetLoadResult LoadAuto(string filePath, bool hasHeaders = true, int? previewRows = null)
     {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException("Путь к файлу не указан.", nameof(filePath));
@@ -23,44 +23,55 @@ public sealed class DatasetReader
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         return ext switch
         {
-            ".csv" or ".txt" => LoadText(filePath, previewRows),
-            ".xlsx" => LoadExcel(filePath, previewRows),
+            ".csv" or ".txt" => LoadText(filePath, hasHeaders, previewRows),
+            ".xlsx" => LoadExcel(filePath, hasHeaders, previewRows),
             ".db" or ".sqlite" => LoadSqlite(filePath, previewRows),
             _ => throw new NotSupportedException($"Неподдерживаемый формат: {ext}")
         };
     }
 
-    public DatasetLoadResult LoadText(string filePath, int? previewRows = null)
+    public DatasetLoadResult LoadText(string filePath, bool hasHeaders, int? previewRows = null)
     {
         var sample = ReadNonEmptyLines(filePath, maxLines: 5);
         var sep = GuessSeparator(sample);
 
         var table = new DataTable();
-        var rowIndex = 0;
-        foreach (var line in File.ReadLines(filePath, Encoding.UTF8))
+        var lines = File.ReadLines(filePath, Encoding.UTF8).Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        if (lines.Count == 0)
+            return new DatasetLoadResult(true, "Файл пуст", table);
+
+        // Определяем заголовки
+        string[] headers;
+        int dataStartIndex;
+        if (hasHeaders)
         {
-            var trimmed = line?.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed))
-                continue;
+            headers = SplitDelimitedLine(lines[0], sep);
+            dataStartIndex = 1;
+        }
+        else
+        {
+            int colCount = SplitDelimitedLine(lines[0], sep).Length;
+            headers = Enumerable.Range(0, colCount).Select(i => $"Column{i}").ToArray();
+            dataStartIndex = 0;
+        }
 
-            var fields = SplitDelimitedLine(trimmed, sep);
-            while (table.Columns.Count < fields.Length)
-                table.Columns.Add($"col{table.Columns.Count}", typeof(string));
+        foreach (var h in headers)
+            table.Columns.Add(h, typeof(string));
 
+        int rowsToLoad = previewRows ?? (lines.Count - dataStartIndex);
+        for (int i = dataStartIndex; i < lines.Count && (i - dataStartIndex) < rowsToLoad; i++)
+        {
+            var fields = SplitDelimitedLine(lines[i], sep);
             var row = table.NewRow();
-            for (var i = 0; i < fields.Length; i++)
-                row[i] = fields[i];
+            for (int j = 0; j < Math.Min(fields.Length, table.Columns.Count); j++)
+                row[j] = fields[j];
             table.Rows.Add(row);
-
-            rowIndex++;
-            if (previewRows is not null && rowIndex >= previewRows.Value)
-                break;
         }
 
         return new DatasetLoadResult(true, $"✅ Файл успешно загружен ({table.Rows.Count} строк)", table);
     }
 
-    public DatasetLoadResult LoadExcel(string filePath, int? previewRows = null)
+    public DatasetLoadResult LoadExcel(string filePath, bool hasHeaders, int? previewRows = null)
     {
         using var wb = new XLWorkbook(filePath);
         var ws = wb.Worksheets.First();
@@ -68,27 +79,36 @@ public sealed class DatasetReader
         if (range is null)
             return new DatasetLoadResult(false, "❌ Excel пуст", new DataTable());
 
-        var table = new DataTable();
         var rows = range.RowsUsed().ToList();
         if (rows.Count == 0)
-            return new DatasetLoadResult(false, "❌ Excel пуст", table);
+            return new DatasetLoadResult(false, "❌ Excel пуст", new DataTable());
 
-        var headerRow = rows[0];
-        var colCount = headerRow.CellsUsed().Count();
+        var table = new DataTable();
+        int dataStartRow = hasHeaders ? 1 : 0;
+        int colCount = rows[0].CellsUsed().Count();
         if (colCount == 0) colCount = range.ColumnCount();
-        for (var c = 1; c <= colCount; c++)
+
+        string[] headers;
+        if (hasHeaders)
         {
-            var name = headerRow.Cell(c).GetString();
-            if (string.IsNullOrWhiteSpace(name)) name = $"col{c - 1}";
-            table.Columns.Add(name, typeof(string));
+            headers = new string[colCount];
+            for (int c = 0; c < colCount; c++)
+                headers[c] = rows[0].Cell(c + 1).GetString().Trim();
+        }
+        else
+        {
+            headers = Enumerable.Range(0, colCount).Select(i => $"Column{i}").ToArray();
         }
 
-        var max = previewRows is null ? rows.Count - 1 : Math.Min(rows.Count - 1, previewRows.Value);
-        for (var r = 1; r <= max; r++)
+        foreach (var h in headers)
+            table.Columns.Add(string.IsNullOrWhiteSpace(h) ? "Column" : h, typeof(string));
+
+        int maxRows = previewRows ?? (rows.Count - dataStartRow);
+        for (int r = dataStartRow; r < rows.Count && (r - dataStartRow) < maxRows; r++)
         {
             var row = table.NewRow();
-            for (var c = 1; c <= colCount; c++)
-                row[c - 1] = rows[r].Cell(c).GetString();
+            for (int c = 0; c < colCount; c++)
+                row[c] = rows[r].Cell(c + 1).GetString();
             table.Rows.Add(row);
         }
 
@@ -199,7 +219,7 @@ public sealed class DatasetReader
     public static double[] LoadVector(string filePath, int? expectedLength = null)
     {
         var reader = new DatasetReader();
-        var loaded = reader.LoadAuto(filePath);
+        var loaded = reader.LoadAuto(filePath, hasHeaders: false);
         var table = loaded.RawTable;
         if (table.Columns.Count == 0 || table.Rows.Count == 0)
             throw new InvalidOperationException("Файл весов пуст");
@@ -226,7 +246,7 @@ public sealed class DatasetReader
     public static double[,] LoadMatrix(string filePath, int? expectedSize = null)
     {
         var reader = new DatasetReader();
-        var loaded = reader.LoadAuto(filePath);
+        var loaded = reader.LoadAuto(filePath, hasHeaders: false);
         var table = loaded.RawTable;
         if (table.Columns.Count == 0 || table.Rows.Count == 0)
             throw new InvalidOperationException("Файл матрицы пуст");
@@ -249,8 +269,8 @@ public sealed class DatasetReader
         var colCount = rows.Max(r => r.Length);
         var matrix = new double[rowCount, colCount];
         for (var i = 0; i < rowCount; i++)
-        for (var j = 0; j < rows[i].Length; j++)
-            matrix[i, j] = rows[i][j];
+            for (var j = 0; j < rows[i].Length; j++)
+                matrix[i, j] = rows[i][j];
 
         if (expectedSize is not null)
         {
@@ -260,8 +280,8 @@ public sealed class DatasetReader
 
             var trimmed = new double[n, n];
             for (var i = 0; i < n; i++)
-            for (var j = 0; j < n; j++)
-                trimmed[i, j] = matrix[i, j];
+                for (var j = 0; j < n; j++)
+                    trimmed[i, j] = matrix[i, j];
 
             Symmetrize(trimmed);
             return trimmed;
@@ -284,12 +304,12 @@ public sealed class DatasetReader
             return;
         var n = matrix.GetLength(0);
         for (var i = 0; i < n; i++)
-        for (var j = i + 1; j < n; j++)
-        {
-            var avg = (matrix[i, j] + matrix[j, i]) / 2.0;
-            matrix[i, j] = avg;
-            matrix[j, i] = avg;
-        }
+            for (var j = i + 1; j < n; j++)
+            {
+                var avg = (matrix[i, j] + matrix[j, i]) / 2.0;
+                matrix[i, j] = avg;
+                matrix[j, i] = avg;
+            }
     }
 
     private static string ReadNonEmptyLines(string path, int maxLines)
@@ -321,13 +341,11 @@ public sealed class DatasetReader
     {
         if (delimiter == " ")
         {
-            // whitespace split (closest to pandas sep=r"\s+")
             return line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
         if (delimiter.Length == 1)
         {
-            // minimal CSV-like split with quotes
             var d = delimiter[0];
             var result = new List<string>();
             var sb = new StringBuilder();
@@ -362,7 +380,6 @@ public sealed class DatasetReader
             return result.ToArray();
         }
 
-        // fallback
         return line.Split(delimiter, StringSplitOptions.TrimEntries);
     }
 
@@ -382,4 +399,3 @@ public sealed class DatasetReader
         return string.IsNullOrWhiteSpace(name) ? null : name;
     }
 }
-

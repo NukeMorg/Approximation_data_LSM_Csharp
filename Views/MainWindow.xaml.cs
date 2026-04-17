@@ -370,7 +370,7 @@ public partial class MainWindow : Window
         BusyProgress.Visibility = Visibility.Visible;
         try
         {
-            var loaded = _datasetReader.LoadAuto(path, previewRows: 200);
+            var loaded = _datasetReader.LoadAuto(path, HasHeadersCheckBox.IsChecked == true, previewRows: 200);
             _table = loaded.RawTable;
             _tableModified = false;
 

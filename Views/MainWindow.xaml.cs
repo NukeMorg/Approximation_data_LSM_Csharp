@@ -101,6 +101,8 @@ public partial class MainWindow : Window
 
             Plot2D.Model = Plot2DModel(_x, _y, _yPred);
             ApplyGridVisibility();
+            _vm.UpdateCoefficients(_coeffs);
+            _vm.UpdatePredictions(_x, _yPred);
         }
         catch (Exception ex)
         {
@@ -143,6 +145,7 @@ public partial class MainWindow : Window
             if (model.X != null)
             {
                 _x = model.X;
+                _y = null;
             }
             else if (_x == null)
             {
@@ -156,6 +159,12 @@ public partial class MainWindow : Window
             _vm.R2 = model.R2Adjusted;
             _vm.RegressionEquation = FormatEquation(_coeffs);
             _vm.StatusText = $"Модель загружена из {dlg.FileName}";
+
+            _vm.UpdateCoefficients(_coeffs);
+            if (_x != null)
+                _vm.UpdatePredictions(_x, _yPred);
+            else
+                _vm.ClearPredictions();
 
             if (_x != null && _y != null)
             {
@@ -177,7 +186,6 @@ public partial class MainWindow : Window
             MessageBox.Show($"Ошибка загрузки модели: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
-
     private void ExportModel()
     {
         if (_coeffs is null || _yPred is null || _metrics is null)
@@ -229,6 +237,8 @@ public partial class MainWindow : Window
         {
             var loaded = _datasetReader.LoadAuto(path, previewRows: 200);
             _table = loaded.RawTable;
+            _vm.Coefficients.Clear();
+            _vm.Predictions.Clear();
             _tableModified = false;
 
             PreviewGrid.ItemsSource = _table.DefaultView;

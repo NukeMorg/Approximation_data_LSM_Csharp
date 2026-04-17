@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -48,6 +49,9 @@ public class MainViewModel : INotifyPropertyChanged
         set => Set(ref _adjustedR2, value);
     }
 
+    public ObservableCollection<CoefficientItem> Coefficients { get; } = new();
+    public ObservableCollection<PredictionItem> Predictions { get; } = new();
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected void RaisePropertyChanged([CallerMemberName] string? name = null)
@@ -60,5 +64,35 @@ public class MainViewModel : INotifyPropertyChanged
         RaisePropertyChanged(name);
         return true;
     }
+
+    public void UpdateCoefficients(IReadOnlyList<double> coeffs)
+    {
+        Coefficients.Clear();
+        for (int i = 0; i < coeffs.Count; i++)
+            Coefficients.Add(new CoefficientItem { Index = i, Value = coeffs[i] });
+    }
+
+    public void UpdatePredictions(double[] x, double[] yPred)
+    {
+        Predictions.Clear();
+        for (int i = 0; i < x.Length && i < yPred.Length; i++)
+            Predictions.Add(new PredictionItem { X = x[i], PredictedY = yPred[i] });
+    }
+
+    public void ClearPredictions()
+    {
+        Predictions.Clear();
+    }
 }
 
+public class CoefficientItem
+{
+    public int Index { get; set; }
+    public double Value { get; set; }
+}
+
+public class PredictionItem
+{
+    public double X { get; set; }
+    public double PredictedY { get; set; }
+}

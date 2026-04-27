@@ -1,8 +1,8 @@
 using MathNet.Numerics.LinearAlgebra;
 
-namespace CurseWork.Core.Regression;
+namespace CurseWork.Core.Regression.Regression2D;
 
-public sealed class PolynomialRegression
+public sealed class PolynomialRegression : IRegression<double[]>
 {
     private readonly double[] _x;
     private readonly double[] _y;
@@ -16,6 +16,8 @@ public sealed class PolynomialRegression
         if (degree < 1) throw new ArgumentOutOfRangeException(nameof(degree));
         _degree = degree;
     }
+
+    public double[] Fit() => Ols();
 
     public double[] Ols()
     {
@@ -125,4 +127,3 @@ public sealed class PolynomialRegression
         return X;
     }
 }
-

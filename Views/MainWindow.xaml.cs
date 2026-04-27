@@ -1,20 +1,23 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
+using CurseWork.Core.FileIO;
+using CurseWork.Core.Regression;
+using CurseWork.Core.Regression.Regression2D;
+using CurseWork.Core.Regression.Regression3D;
+using CurseWork.Core.Saving;
+using CurseWork.ViewModels;
+using HelixToolkit.Wpf;
 using Microsoft.Win32;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using OxyPlot.Wpf;
-using CurseWork.Core.FileIO;
-using CurseWork.Core.Regression;
-using CurseWork.Core.Saving;
+using System.Data;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Media3D;
 
 namespace CurseWork;
 
@@ -32,22 +35,29 @@ public partial class MainWindow : Window
     private double[]? _x;
     private double[]? _y;
 
-    private double[]? _weights = null;
-    private double[,]? _cov = null;
+    private double[]? _weights;
+    private double[,]? _cov;
 
     private double[]? _coeffs;
     private double[]? _yPred;
     private RegressionMetrics? _metrics;
+
+    // 3D данные и ViewModel
+    public Main3DViewModel ViewModel3D { get; } = new();
+    private double[]? _x3d, _y3d, _z3d;
 
     public MainWindow()
     {
         InitializeComponent();
         _vm = new MainViewModel { StatusText = "Готово" };
         DataContext = _vm;
+        // Для 3D-вкладки DataContext уже задан в XAML, но продублируем для надёжности
+        var tab3D = (TabItem)this.FindName("Tab3D");
+        if (tab3D != null) tab3D.DataContext = ViewModel3D;
+
         Plot2D.Model = CreateEmptyPlotModel();
         ApplyGridVisibility();
 
-        // Синхронизация слайдера и текстового поля степени
         DegreeSlider.ValueChanged += DegreeSlider_ValueChanged;
         DegreeTextBox.TextChanged += DegreeTextBox_TextChanged;
         DegreeSlider.Value = 3;
@@ -61,7 +71,6 @@ public partial class MainWindow : Window
     private void MenuSave_OnClick(object sender, RoutedEventArgs e) => SaveResults();
     private void MenuExit_OnClick(object sender, RoutedEventArgs e) => Close();
     private void Plot2D_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => Plot2D.ResetAllAxes();
-      
 
     private void BrowseSource_OnClick(object sender, RoutedEventArgs e) => BrowseAndLoad();
 
@@ -89,12 +98,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private int ParseDegree()
-    {
-        if (int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d >= 1)
-            return d;
-        return 3;
-    }
+    private int ParseDegree() =>
+        int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d >= 1 ? d : 3;
 
     private int AutoSelectDegree(double[] x, double[] y, out double bestMetric)
     {
@@ -117,7 +122,6 @@ public partial class MainWindow : Window
             }
             else
             {
-                // При первом же ухудшении прекращаем перебор
                 break;
             }
         }
@@ -149,7 +153,6 @@ public partial class MainWindow : Window
             }
 
             var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString() ?? "OLS";
-
             var reg = new PolynomialRegression(_x, _y, degree);
             _coeffs = method switch
             {
@@ -164,7 +167,7 @@ public partial class MainWindow : Window
             _vm.MSE = _metrics.Value.Mse;
             _vm.RMSE = Math.Sqrt(_vm.MSE);
             _vm.AdjustedR2 = _metrics.Value.AdjustedR2;
-            _vm.R2 = _vm.AdjustedR2;
+            _vm.R2 = _metrics.Value.AdjustedR2;
             _vm.RegressionEquation = FormatEquation(_coeffs);
             _vm.StatusText = $"OK ({method}). MSE={_vm.MSE:F4}, AdjR²={_vm.AdjustedR2:F4}";
 
@@ -303,9 +306,7 @@ public partial class MainWindow : Window
                 _vm.ClearPredictions();
 
             if (_x != null && _y != null)
-            {
                 Plot2D.Model = Plot2DModel(_x, _y, _yPred);
-            }
             else if (_x != null)
             {
                 var model2D = CreateEmptyPlotModel();
@@ -360,7 +361,7 @@ public partial class MainWindow : Window
     private void PreviewGrid_OnCellEditEnding(object? sender, DataGridCellEditEndingEventArgs e)
     {
         _tableModified = true;
-        _vm.StatusText = " Данные изменены. Сохраните изменения или загрузите заново.";
+        _vm.StatusText = "Данные изменены. Сохраните изменения или загрузите заново.";
     }
 
     private void LoadFromPath(string? path)
@@ -377,11 +378,11 @@ public partial class MainWindow : Window
             _tableModified = false;
 
             PreviewGrid.ItemsSource = _table.DefaultView;
-
             _vm.Coefficients.Clear();
             _vm.Predictions.Clear();
 
             PopulateColumnCombos(_table);
+            Populate3DColumnCombos();
             LoadArraysFromTable();
 
             _weights = null;
@@ -411,6 +412,19 @@ public partial class MainWindow : Window
         YColumnCombo.SelectedItem = names.FirstOrDefault(n => n.Trim().Equals("y", StringComparison.OrdinalIgnoreCase)) ?? names.ElementAtOrDefault(1);
     }
 
+    private void Populate3DColumnCombos()
+    {
+        if (_table is null) return;
+        var names = _table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToList();
+        XColumn3DCombo.ItemsSource = names;
+        YColumn3DCombo.ItemsSource = names;
+        ZColumn3DCombo.ItemsSource = names;
+
+        XColumn3DCombo.SelectedItem = names.FirstOrDefault(n => n.Trim().Equals("x", StringComparison.OrdinalIgnoreCase)) ?? names.ElementAtOrDefault(0);
+        YColumn3DCombo.SelectedItem = names.FirstOrDefault(n => n.Trim().Equals("y", StringComparison.OrdinalIgnoreCase)) ?? names.ElementAtOrDefault(1);
+        ZColumn3DCombo.SelectedItem = names.FirstOrDefault(n => n.Trim().Equals("z", StringComparison.OrdinalIgnoreCase)) ?? names.ElementAtOrDefault(2);
+    }
+
     private void LoadArraysFromTable()
     {
         if (_table is null) return;
@@ -436,6 +450,224 @@ public partial class MainWindow : Window
             _x = xy.X;
             _y = xy.Y;
         }
+    }
+
+    private void LoadArraysFromTableFor3D()
+    {
+        if (_table is null) return;
+
+        if (XColumn3DCombo.SelectedItem is string xName && YColumn3DCombo.SelectedItem is string yName && ZColumn3DCombo.SelectedItem is string zName
+            && _table.Columns.Contains(xName) && _table.Columns.Contains(yName) && _table.Columns.Contains(zName))
+        {
+            var xs = new List<double>();
+            var ys = new List<double>();
+            var zs = new List<double>();
+            foreach (DataRow row in _table.Rows)
+            {
+                if (!TryParseCell(row[xName], out var x)) continue;
+                if (!TryParseCell(row[yName], out var y)) continue;
+                if (!TryParseCell(row[zName], out var z)) continue;
+                xs.Add(x);
+                ys.Add(y);
+                zs.Add(z);
+            }
+            _x3d = xs.ToArray();
+            _y3d = ys.ToArray();
+            _z3d = zs.ToArray();
+        }
+        else
+        {
+            var xyz = DatasetReader.PrepareXYZ(_table);
+            _x3d = xyz.X;
+            _y3d = xyz.Y;
+            _z3d = xyz.Z;
+            if (_table.Columns.Count >= 1) XColumn3DCombo.SelectedItem = _table.Columns[0].ColumnName;
+            if (_table.Columns.Count >= 2) YColumn3DCombo.SelectedItem = _table.Columns[1].ColumnName;
+            if (_table.Columns.Count >= 3) ZColumn3DCombo.SelectedItem = _table.Columns[2].ColumnName;
+        }
+    }
+
+    private void Build3DModel_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_table is null) throw new InvalidOperationException("Сначала загрузите данные.");
+            LoadArraysFromTableFor3D();
+            if (_x3d is null || _y3d is null || _z3d is null)
+                throw new InvalidOperationException("Не удалось выделить X, Y и Z.");
+
+            var selectedModel = ((ComboBoxItem)Model3DCombo.SelectedItem).Content?.ToString();
+            double[] zPred = null;
+            RegressionMetrics metrics;
+
+            if (selectedModel == "Плоскость")
+            {
+                var regression = new PlaneRegression(_x3d, _y3d, _z3d);
+                var result = regression.Fit();
+                ViewModel3D.RegressionEquation = $"z = {result.A:F4}·x + {result.B:F4}·y + {result.C:F4}";
+                metrics = result.Metrics;
+                zPred = result.ZPred;
+                ViewModel3D.UpdateCoefficients(new double[] { result.A, result.B, result.C });
+            }
+            else
+            {
+                var regression = new QuadraticSurfaceRegression(_x3d, _y3d, _z3d);
+                var result = regression.Fit();
+                ViewModel3D.RegressionEquation = "z = a·x² + b·y² + c·x·y + d·x + e·y + f";
+                metrics = result.Metrics;
+                zPred = result.ZPred;
+                ViewModel3D.UpdateCoefficients(result.Coefficients);
+            }
+
+            ViewModel3D.MSE = metrics.Mse;
+            ViewModel3D.RMSE = Math.Sqrt(metrics.Mse);
+            ViewModel3D.AdjustedR2 = metrics.AdjustedR2;
+            ViewModel3D.R2 = metrics.AdjustedR2;
+            ViewModel3D.UpdatePredictions(_x3d, zPred);
+            ViewModel3D.StatusText = "3D модель построена";
+
+            Visualize3D(_x3d, _y3d, _z3d, zPred, selectedModel == "Плоскость");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Ошибка 3D", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void Clear3D_Click(object sender, RoutedEventArgs e)
+    {
+        Viewport3D.Children.Clear();
+        ViewModel3D.RegressionEquation = string.Empty;
+        ViewModel3D.StatusText = "3D сцена очищена";
+        ViewModel3D.MSE = ViewModel3D.RMSE = ViewModel3D.R2 = ViewModel3D.AdjustedR2 = 0;
+        ViewModel3D.Coefficients.Clear();
+        ViewModel3D.Predictions.Clear();
+    }
+
+    private void Visualize3D(double[] x, double[] y, double[] z, double[] zPred, bool isPlane)
+    {
+        Viewport3D.Children.Clear();
+
+        // Исходные точки
+        var points = new PointsVisual3D();
+        var pointCollection = new Point3DCollection(x.Length);
+        for (int i = 0; i < x.Length; i++)
+            pointCollection.Add(new Point3D(x[i], y[i], z[i]));
+        points.Points = pointCollection;
+        points.Color = Colors.RoyalBlue;
+        points.Size = 3;
+        Viewport3D.Children.Add(points);
+
+        // Поверхность модели
+        MeshGeometry3D mesh = BuildSurfaceMesh(x, y, zPred, isPlane);
+        if (mesh != null)
+        {
+            var material = MaterialHelper.CreateMaterial(Colors.OrangeRed, 0.6);
+            var model = new GeometryModel3D { Geometry = mesh, Material = material, BackMaterial = material };
+            Viewport3D.Children.Add(new ModelVisual3D { Content = model });
+        }
+
+        // Оси координат
+        // ... в методе Visualize3D
+        // Создаем оси координат вручную
+        var origin = new Point3D(0, 0, 0);
+        // Ось X (красная)
+        var axisX = new ArrowVisual3D
+        {
+            Point1 = origin,
+            Point2 = new Point3D(5, 0, 0),
+            Diameter = 0.1,
+            Fill = Brushes.Red
+        };
+        Viewport3D.Children.Add(axisX);
+        // Ось Y (зеленая)
+        var axisY = new ArrowVisual3D
+        {
+            Point1 = origin,
+            Point2 = new Point3D(0, 5, 0),
+            Diameter = 0.1,
+            Fill = Brushes.Green
+        };
+        Viewport3D.Children.Add(axisY);
+        // Ось Z (синяя)
+        var axisZ = new ArrowVisual3D
+        {
+            Point1 = origin,
+            Point2 = new Point3D(0, 0, 5),
+            Diameter = 0.1,
+            Fill = Brushes.Blue
+        };
+        Viewport3D.Children.Add(axisZ);
+
+        Viewport3D.ZoomExtents();
+    }
+
+    private MeshGeometry3D BuildSurfaceMesh(double[] x, double[] y, double[] zPred, bool isPlane)
+    {
+        if (x.Length == 0) return null;
+
+        double minX = x.Min(), maxX = x.Max();
+        double minY = y.Min(), maxY = y.Max();
+        if (Math.Abs(maxX - minX) < 1e-6 || Math.Abs(maxY - minY) < 1e-6) return null;
+
+        // Получаем коэффициенты модели из ViewModel3D
+        var coeffs = ViewModel3D.Coefficients.Select(c => c.Value).ToArray();
+        int p = coeffs.Length;
+        if (p != 3 && p != 6) return null;
+
+        const int resolution = 40;
+        double stepX = (maxX - minX) / resolution;
+        double stepY = (maxY - minY) / resolution;
+
+        var positions = new List<Point3D>();
+        var indices = new List<int>();
+
+        // Генерация вершин
+        for (int i = 0; i <= resolution; i++)
+        {
+            double xi = minX + i * stepX;
+            for (int j = 0; j <= resolution; j++)
+            {
+                double yj = minY + j * stepY;
+                double zi = 0;
+                if (p == 3) // плоскость: a*x + b*y + c
+                {
+                    zi = coeffs[0] * xi + coeffs[1] * yj + coeffs[2];
+                }
+                else if (p == 6) // квадратичная
+                {
+                    zi = coeffs[0] * xi * xi + coeffs[1] * yj * yj + coeffs[2] * xi * yj +
+                         coeffs[3] * xi + coeffs[4] * yj + coeffs[5];
+                }
+                positions.Add(new Point3D(xi, yj, zi));
+            }
+        }
+
+        // Треугольники
+        for (int i = 0; i < resolution; i++)
+        {
+            for (int j = 0; j < resolution; j++)
+            {
+                int idx = i * (resolution + 1) + j;
+                int nextRow = (i + 1) * (resolution + 1) + j;
+                indices.Add(idx);
+                indices.Add(idx + 1);
+                indices.Add(nextRow);
+
+                indices.Add(nextRow);
+                indices.Add(idx + 1);
+                indices.Add(nextRow + 1);
+            }
+        }
+
+        var mesh = new MeshGeometry3D
+        {
+            Positions = new Point3DCollection(positions),
+            TriangleIndices = new Int32Collection(indices)
+        };
+        // Вычисление нормалей (метод расширения из HelixToolkit)
+        ComputeNormals(mesh);
+        return mesh;
     }
 
     private static bool TryParseCell(object? value, out double result)
@@ -499,31 +731,25 @@ public partial class MainWindow : Window
     private static string FormatEquation(IReadOnlyList<double> coeffs)
     {
         if (coeffs.Count == 0) return "";
-
         char[] superscripts = { '⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹' };
-
         var parts = new List<string>();
         for (int i = 0; i < coeffs.Count; i++)
         {
             double a = coeffs[i];
             if (Math.Abs(a) < 1e-15) continue;
-
             string signPart;
             if (parts.Count == 0)
                 signPart = a.ToString("G6", CultureInfo.InvariantCulture);
             else
                 signPart = (a >= 0 ? "+ " : "- ") + Math.Abs(a).ToString("G6", CultureInfo.InvariantCulture);
-
             string varPart = i switch
             {
                 0 => "",
                 1 => "·x",
                 _ => "·x" + string.Concat(i.ToString().Select(c => superscripts[c - '0']))
             };
-
             parts.Add(signPart + varPart);
         }
-
         return parts.Count == 0 ? "y = 0" : "y = " + string.Join(" ", parts);
     }
 
@@ -538,14 +764,12 @@ public partial class MainWindow : Window
     private static PlotModel Plot2DModel(double[] x, double[] y, double[]? yPred)
     {
         var model = CreateEmptyPlotModel();
-
         var scatter = new ScatterSeries
         {
             Title = "Данные",
             MarkerType = MarkerType.Circle,
             MarkerSize = 4.0,
-            MarkerFill = OxyColor.Parse("#007acc"),
-            TrackerFormatString = "X: {2:0.######}\nY: {4:0.######}"
+            MarkerFill = OxyColor.Parse("#007acc")
         };
         for (var i = 0; i < x.Length; i++)
             scatter.Points.Add(new ScatterPoint(x[i], y[i]));
@@ -558,7 +782,6 @@ public partial class MainWindow : Window
                 line.Points.Add(new DataPoint(x[i], yPred[i]));
             model.Series.Add(line);
         }
-
         return model;
     }
 
@@ -571,10 +794,7 @@ public partial class MainWindow : Window
         Plot2D.InvalidatePlot(true);
     }
 
-    private void ShowGridCheckBox_Changed(object sender, RoutedEventArgs e)
-    {
-        ApplyGridVisibility();
-    }
+    private void ShowGridCheckBox_Changed(object sender, RoutedEventArgs e) => ApplyGridVisibility();
 
     private void ExportPlot_Click(object sender, RoutedEventArgs e)
     {
@@ -685,6 +905,32 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Ошибка сохранения отчёта: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        } 
+    }
+
+    private void ComputeNormals(MeshGeometry3D mesh)
+    {
+        var positions = mesh.Positions;
+        var indices = mesh.TriangleIndices;
+        var normals = new Vector3D[positions.Count];
+        for (int i = 0; i < indices.Count; i += 3)
+        {
+            var v0 = positions[indices[i]];
+            var v1 = positions[indices[i + 1]];
+            var v2 = positions[indices[i + 2]];
+            var normal = Vector3D.CrossProduct(v1 - v0, v2 - v0);
+            normal.Normalize();
+            normals[indices[i]] += normal;
+            normals[indices[i + 1]] += normal;
+            normals[indices[i + 2]] += normal;
         }
+        var normalCollection = new Vector3DCollection();
+        foreach (var n in normals)
+        {
+            var normalizedNormal = n;
+            normalizedNormal.Normalize();
+            normalCollection.Add(normalizedNormal);
+        }
+        mesh.Normals = normalCollection;
     }
 }

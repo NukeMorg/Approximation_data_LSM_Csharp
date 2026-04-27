@@ -3,18 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:oxy="http://oxyplot.org/wpf"
         xmlns:h="http://helix-toolkit.org/wpf"
-        Title="Регрессионный анализ (2D и 3D)"
-        Width="1200"
-        Height="700"
-        MinWidth="1100"
-        MinHeight="650"
-        WindowStartupLocation="CenterScreen"
-        FontSize="13"
-        Loaded="MainWindow_OnLoaded">
-
+        Title="Регрессионный анализ"
+        Width="1200" Height="700" WindowStartupLocation="CenterScreen">
     <DockPanel>
-
-        <!-- ================= МЕНЮ ================= -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Файл">
                 <MenuItem Header="Открыть данные" Click="MenuOpen_OnClick"/>
@@ -23,224 +14,145 @@
                 <Separator/>
                 <MenuItem Header="Выход" Click="MenuExit_OnClick"/>
             </MenuItem>
-            <MenuItem Header="Вид">
-                <MenuItem Header="Светлая тема"/>
-                <MenuItem Header="Тёмная тема"/>
-            </MenuItem>
-            <MenuItem Header="Справка">
-                <MenuItem Header="О программе"/>
-            </MenuItem>
         </Menu>
 
-        <!-- ================= СТАТУС ================= -->
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem Content="{Binding StatusText}"/>
-            <Separator/>
-            <StatusBarItem HorizontalAlignment="Right">
-                <ProgressBar x:Name="BusyProgress" Width="180" Height="14" IsIndeterminate="True" Visibility="Collapsed"/>
-            </StatusBarItem>
+            <ProgressBar x:Name="BusyProgress" Width="150" Height="14" IsIndeterminate="True" Visibility="Collapsed"/>
         </StatusBar>
 
-        <!-- ================= ОСНОВНАЯ ОБЛАСТЬ (ВКЛАДКИ) ================= -->
-        <TabControl>
-            <!-- ************ ВКЛАДКА 2D ************ -->
-            <TabItem Header="2D регрессия">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="320"/>
-                    </Grid.ColumnDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="320"/>
+            </Grid.ColumnDefinitions>
 
-                    <!-- ЛЕВАЯ ПАНЕЛЬ 2D -->
-                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="10">
-
-                            <!-- Источник данных -->
-                            <GroupBox Header="Источник данных" Margin="0,0,0,10">
-                                <StackPanel Margin="8">
-                                    <TextBlock Text="Путь к файлу / строка подключения"/>
-                                    <DockPanel Margin="0,2,0,6">
-                                        <TextBox x:Name="SourcePathTextBox" Width="200"/>
-                                        <Button Content="..." Width="26" Margin="4,0,0,0" Click="BrowseSource_OnClick"/>
-                                    </DockPanel>
-                                    <CheckBox x:Name="HasHeadersCheckBox" Content="Первая строка содержит заголовки" IsChecked="True"/>
-                                    <Separator Margin="6"/>
-                                    <TextBlock Text="Переменная X"/>
-                                    <ComboBox x:Name="XColumnCombo" Height="24" Margin="0,2,0,6"/>
-                                    <TextBlock Text="Переменная Y"/>
-                                    <ComboBox x:Name="YColumnCombo" Height="24" Margin="0,2,0,6"/>
-                                    <Button Content="Загрузить данные" Height="28" Margin="0,6,0,0" Click="LoadData_OnClick"/>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <!-- Предпросмотр данных -->
-                            <GroupBox Header="Предпросмотр данных" Margin="0,0,0,10">
-                                <StackPanel Margin="6">
-                                    <DataGrid x:Name="PreviewGrid" Height="150" IsReadOnly="False" AutoGenerateColumns="True" CellEditEnding="PreviewGrid_OnCellEditEnding"/>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <!-- Параметры модели -->
-                            <GroupBox Header="Параметры модели">
-                                <StackPanel Margin="8">
-                                    <TextBlock Text="Степень полинома"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,6">
-                                        <Slider x:Name="DegreeSlider" Minimum="1" Maximum="10" Width="160" Value="3"/>
-                                        <TextBox x:Name="DegreeTextBox" Width="40" Margin="6,0,0,0" Text="3"/>
-                                    </StackPanel>
-                                    <CheckBox x:Name="AutoDegreeCheckBox" Content="Автоматический подбор степени"/>
-                                    <TextBlock Text="Метод аппроксимации" Margin="0,6,0,0"/>
-                                    <ComboBox x:Name="MethodCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0" SelectionChanged="MethodCombo_SelectionChanged">
-                                        <ComboBoxItem Content="OLS"/>
-                                        <ComboBoxItem Content="WLS"/>
-                                        <ComboBoxItem Content="GLS"/>
-                                    </ComboBox>
-                                    <CheckBox x:Name="StandardizeCheckBox" Content="Стандартизация данных"/>
-                                    <CheckBox x:Name="ConfidenceCheckBox" Content="Расчёт доверительных интервалов"/>
-                                    <Button Content="Построить модель" Height="30" Margin="0,8,0,0" Click="BuildModel_OnClick"/>
-                                </StackPanel>
-                            </GroupBox>
+            <!-- Левая панель: источник данных, настройки -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10">
+                    <GroupBox Header="Источник данных" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Путь к файлу"/>
+                            <DockPanel Margin="0,2,0,6">
+                                <TextBox x:Name="SourcePathTextBox" Width="200"/>
+                                <Button Content="..." Width="26" Margin="4,0,0,0" Click="BrowseSource_OnClick"/>
+                            </DockPanel>
+                            <CheckBox x:Name="HasHeadersCheckBox" Content="Первая строка содержит заголовки" IsChecked="True"/>
+                            <Separator Margin="0,6,0,6"/>
+                            <TextBlock Text="X"/>
+                            <ComboBox x:Name="XColumnCombo" Height="24" Margin="0,2,0,6"/>
+                            <TextBlock Text="Y"/>
+                            <ComboBox x:Name="YColumnCombo" Height="24" Margin="0,2,0,6"/>
+                            <TextBlock x:Name="ZLabel" Text="Z (для 3D)" Visibility="Collapsed"/>
+                            <ComboBox x:Name="ZColumnCombo" Height="24" Margin="0,2,0,6" Visibility="Collapsed"/>
+                            <Button Content="Загрузить данные" Click="LoadData_OnClick" Margin="0,8,0,0"/>
                         </StackPanel>
-                    </ScrollViewer>
+                    </GroupBox>
 
-                    <!-- ЦЕНТР (график 2D) -->
-                    <Grid Grid.Column="1" Margin="10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                            <CheckBox x:Name="ShowGridCheckBox" Content="Показать сетку" Margin="10,0,0,0" Click="ShowGridCheckBox_Changed"/>
-                            <Button Content="Экспорт графика" Margin="10,0,0,0" Click="ExportPlot_Click"/>
+                    <GroupBox Header="Предпросмотр" Margin="0,0,0,10">
+                        <DataGrid x:Name="PreviewGrid" Height="150" AutoGenerateColumns="True" CellEditEnding="PreviewGrid_OnCellEditEnding"/>
+                    </GroupBox>
+
+                    <StackPanel x:Name="Panel2DSettings">
+                        <GroupBox Header="2D параметры">
+                            <StackPanel>
+                                <TextBlock Text="Степень полинома"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="DegreeSlider" Minimum="1" Maximum="10" Width="150" Value="3"/>
+                                    <TextBox x:Name="DegreeTextBox" Width="40" Margin="6,0,0,0" Text="3"/>
+                                </StackPanel>
+                                <CheckBox x:Name="AutoDegreeCheckBox" Content="Автоматический подбор степени" Margin="0,4,0,0"/>
+                                <TextBlock Text="Метод аппроксимации" Margin="0,8,0,0"/>
+                                <ComboBox x:Name="MethodCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0" SelectionChanged="MethodCombo_SelectionChanged">
+                                    <ComboBoxItem Content="OLS"/>
+                                    <ComboBoxItem Content="WLS"/>
+                                    <ComboBoxItem Content="GLS"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+
+                    <StackPanel x:Name="Panel3DSettings" Visibility="Collapsed">
+                        <GroupBox Header="3D параметры">
+                            <StackPanel>
+                                <TextBlock Text="Тип поверхности"/>
+                                <ComboBox x:Name="SurfaceTypeCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0">
+                                    <ComboBoxItem Content="Плоскость"/>
+                                    <ComboBoxItem Content="Квадрика (полная)"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
+
+                    <Button Content="Построить модель" Click="BuildModel_OnClick" Height="30" Margin="0,15,0,0"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Центральная область: переключатели и график -->
+            <Grid Grid.Column="1" Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,6">
+                    <ToggleButton x:Name="Toggle2D" Content="2D режим" Width="80" IsChecked="True" 
+                        Checked="ToggleMode_Checked" Unchecked="ToggleMode_Checked" Margin="0,0,5,0"/>
+                    <ToggleButton x:Name="Toggle3D" Content="3D режим" Width="80" Margin="0,0,5,0" 
+                        Checked="ToggleMode_Checked" Unchecked="ToggleMode_Checked"/>
+                    <CheckBox x:Name="ShowGridCheckBox" Content="Показать сетку (2D)" Margin="15,0,0,0" Click="ShowGridCheckBox_Changed"/>
+                    <Button Content="Экспорт графика" Margin="15,0,0,0" Click="ExportPlot_Click"/>
+                </StackPanel>
+
+                <Border x:Name="Plot2DBorder" Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
+                    <oxy:PlotView x:Name="Plot2D"/>
+                </Border>
+                <Border x:Name="Plot3DBorder" Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Visibility="Collapsed">
+                    <h:HelixViewport3D x:Name="Viewport3D">
+                        <h:DefaultLights/>
+                    </h:HelixViewport3D>
+                </Border>
+            </Grid>
+
+            <!-- Правая панель: результаты -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10">
+                    <GroupBox Header="Уравнение регрессии" Margin="0,0,0,10">
+                        <TextBlock Text="{Binding RegressionEquation}" TextWrapping="Wrap" FontFamily="Consolas"/>
+                    </GroupBox>
+                    <GroupBox Header="Коэффициенты" Margin="0,0,0,10">
+                        <DataGrid ItemsSource="{Binding Coefficients}" AutoGenerateColumns="False" Height="150">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Индекс" Binding="{Binding Index}" Width="*"/>
+                                <DataGridTextColumn Header="Значение" Binding="{Binding Value, StringFormat='G6'}" Width="2*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+                    <GroupBox Header="Предсказанные значения" Margin="0,0,0,10">
+                        <DataGrid ItemsSource="{Binding Predictions}" AutoGenerateColumns="False" Height="150">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat='0.######'}" Width="*"/>
+                                <DataGridTextColumn Header="Y/Z (предск.)" Binding="{Binding PredictedY, StringFormat='0.######'}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+                    <GroupBox Header="Показатели качества" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="{Binding MSE, StringFormat='Среднеквадратичная ошибка (MSE): {0:F4}'}"/>
+                            <TextBlock Text="{Binding RMSE, StringFormat='Корень MSE (RMSE): {0:F4}'}"/>
+                            <TextBlock Text="{Binding R2, StringFormat='Коэффициент детерминации (R²): {0:F4}'}"/>
+                            <TextBlock Text="{Binding AdjustedR2, StringFormat='Скорректированный R²: {0:F4}'}"/>
                         </StackPanel>
-                        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
-                            <oxy:PlotView x:Name="Plot2D" MouseDoubleClick="Plot2D_MouseDoubleClick"/>
-                        </Border>
-                    </Grid>
-
-                    <!-- ПРАВАЯ ПАНЕЛЬ 2D -->
-                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="10">
-                            <GroupBox Header="Уравнение регрессии" Margin="0,0,0,10">
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" MaxHeight="100">
-                                    <TextBlock Margin="6" FontFamily="Consolas" Text="{Binding RegressionEquation}" TextWrapping="Wrap"/>
-                                </ScrollViewer>
-                            </GroupBox>
-                            <GroupBox Header="Коэффициенты" Margin="0,0,0,10">
-                                <DataGrid ItemsSource="{Binding Coefficients}" AutoGenerateColumns="False" Height="160" IsReadOnly="True">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Индекс" Binding="{Binding Index}" Width="*"/>
-                                        <DataGridTextColumn Header="Значение" Binding="{Binding Value, StringFormat='G6'}" Width="2*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </GroupBox>
-                            <GroupBox Header="Предсказанные значения" Margin="0,0,0,10">
-                                <DataGrid ItemsSource="{Binding Predictions}" AutoGenerateColumns="False" Height="160" IsReadOnly="True">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat='0.######'}" Width="*"/>
-                                        <DataGridTextColumn Header="Y (предск.)" Binding="{Binding PredictedY, StringFormat='0.######'}" Width="*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </GroupBox>
-                            <GroupBox Header="Показатели качества" Margin="0,0,0,10">
-                                <StackPanel Margin="6">
-                                    <TextBlock Text="{Binding MSE, StringFormat='Среднеквадратичная ошибка (MSE): {0:F4}'}"/>
-                                    <TextBlock Text="{Binding RMSE, StringFormat='Корень MSE (RMSE): {0:F4}'}"/>
-                                    <TextBlock Text="{Binding R2, StringFormat='Коэффициент детерминации (R²): {0:F4}'}"/>
-                                    <TextBlock Text="{Binding AdjustedR2, StringFormat='Скорректированный R²: {0:F4}'}"/>
-                                </StackPanel>
-                            </GroupBox>
-                            <GroupBox Header="Экспорт результатов">
-                                <StackPanel Margin="6">
-                                    <Button Content="Сохранить отчёт" Click="SaveReport_Click"/>
-                                    <Button Content="Импорт модели" Margin="0,4,0,0" Click="ImportModel_Click"/>
-                                    <Button Content="Экспорт модели" Margin="0,4,0,0" Click="ExportModel_Click"/>
-                                </StackPanel>
-                            </GroupBox>
+                    </GroupBox>
+                    <GroupBox Header="Экспорт результатов">
+                        <StackPanel>
+                            <Button Content="Сохранить отчёт" Click="SaveReport_Click"/>
+                            <Button Content="Импорт модели" Margin="0,4,0,0" Click="ImportModel_Click"/>
+                            <Button Content="Экспорт модели" Margin="0,4,0,0" Click="ExportModel_Click"/>
                         </StackPanel>
-                    </ScrollViewer>
-                </Grid>
-            </TabItem>
-
-            <!-- ************ ВКЛАДКА 3D ************ -->
-            <TabItem Header="3D регрессия" DataContext="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=Window}, Path=ViewModel3D}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="320"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- ЛЕВАЯ ПАНЕЛЬ 3D -->
-                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="10">
-                            <GroupBox Header="Выбор столбцов" Margin="0,0,0,10">
-                                <StackPanel Margin="8">
-                                    <TextBlock Text="Столбец X"/>
-                                    <ComboBox x:Name="XColumn3DCombo" Height="24" Margin="0,2,0,6"/>
-                                    <TextBlock Text="Столбец Y"/>
-                                    <ComboBox x:Name="YColumn3DCombo" Height="24" Margin="0,2,0,6"/>
-                                    <TextBlock Text="Столбец Z (отклик)"/>
-                                    <ComboBox x:Name="ZColumn3DCombo" Height="24" Margin="0,2,0,6"/>
-                                    <Button Content="Построить 3D модель" Height="28" Margin="0,6,0,0" Click="Build3DModel_Click"/>
-                                    <Button Content="Очистить сцену" Height="28" Margin="0,6,0,0" Click="Clear3D_Click"/>
-                                </StackPanel>
-                            </GroupBox>
-                            <GroupBox Header="Тип модели" Margin="0,0,0,10">
-                                <StackPanel Margin="8">
-                                    <ComboBox x:Name="Model3DCombo" SelectedIndex="0">
-                                        <ComboBoxItem Content="Плоскость"/>
-                                        <ComboBoxItem Content="Квадрика (полная)"/>
-                                    </ComboBox>
-                                </StackPanel>
-                            </GroupBox>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- ЦЕНТР (3D сцена) -->
-                    <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="10">
-                        <h:HelixViewport3D x:Name="Viewport3D">
-                            <h:DefaultLights/>
-                        </h:HelixViewport3D>
-                    </Border>
-
-                    <!-- ПРАВАЯ ПАНЕЛЬ 3D (статистика) -->
-                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="10">
-                            <GroupBox Header="Уравнение поверхности" Margin="0,0,0,10">
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" MaxHeight="100">
-                                    <TextBlock Margin="6" FontFamily="Consolas" Text="{Binding RegressionEquation}" TextWrapping="Wrap"/>
-                                </ScrollViewer>
-                            </GroupBox>
-                            <GroupBox Header="Коэффициенты" Margin="0,0,0,10">
-                                <DataGrid ItemsSource="{Binding Coefficients}" AutoGenerateColumns="False" Height="160" IsReadOnly="True">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Индекс" Binding="{Binding Index}" Width="*"/>
-                                        <DataGridTextColumn Header="Значение" Binding="{Binding Value, StringFormat='G6'}" Width="2*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </GroupBox>
-                            <GroupBox Header="Предсказанные Z (отсортировано по X)" Margin="0,0,0,10">
-                                <DataGrid ItemsSource="{Binding Predictions}" AutoGenerateColumns="False" Height="160" IsReadOnly="True">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="X" Binding="{Binding X, StringFormat='0.######'}" Width="*"/>
-                                        <DataGridTextColumn Header="Z (предск.)" Binding="{Binding PredictedZ, StringFormat='0.######'}" Width="*"/>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </GroupBox>
-                            <GroupBox Header="Показатели качества 3D модели" Margin="0,0,0,10">
-                                <StackPanel Margin="6">
-                                    <TextBlock Text="{Binding MSE, StringFormat='Среднеквадратичная ошибка (MSE): {0:F4}'}"/>
-                                    <TextBlock Text="{Binding RMSE, StringFormat='Корень MSE (RMSE): {0:F4}'}"/>
-                                    <TextBlock Text="{Binding R2, StringFormat='Коэффициент детерминации (R²): {0:F4}'}"/>
-                                    <TextBlock Text="{Binding AdjustedR2, StringFormat='Скорректированный R²: {0:F4}'}"/>
-                                </StackPanel>
-                            </GroupBox>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Grid>
-            </TabItem>
-        </TabControl>
+                    </GroupBox>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </DockPanel>
 </Window>

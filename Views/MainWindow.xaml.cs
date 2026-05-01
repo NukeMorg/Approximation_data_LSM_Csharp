@@ -41,12 +41,14 @@ namespace CurseWork
         private double[]? _coeffs;
         private double[]? _yPred;
         private RegressionMetrics? _metrics;
+        private LineSeries? _modelLineSeries;
 
         public MainWindow()
         {
             InitializeComponent();
 
             _vm = new MainViewModel { StatusText = "Готово" };
+            _vm.PropertyChanged += OnViewModelPropertyChanged;
 
             _vm.ThreeD = new Main3DViewModel();
             DataContext = _vm;
@@ -124,6 +126,16 @@ namespace CurseWork
             Toggle2D.SetValue(RadioButton.GroupNameProperty, "dim");
             Toggle3D.SetValue(RadioButton.GroupNameProperty, "dim");
             Toggle2D.IsChecked = true;
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.LineColor) && _modelLineSeries != null)
+            {
+                var newColor = _vm.LineColor;
+                _modelLineSeries.Color = OxyColor.FromRgb(newColor.R, newColor.G, newColor.B);
+                Plot2D.InvalidatePlot(true);   // перерисовать без полной очистки
+            }
         }
 
         private void Visualize3D(double[] x, double[] y, double[] z, double[] zPred, Color surfaceColor, double[] coeffs)
@@ -366,6 +378,8 @@ namespace CurseWork
                 Viewport3D.Children.Clear();
                 Viewport3D.Children.Add(new DefaultLights());
             }
+
+            _modelLineSeries = null;
         }
 
         private void Build2DModel()
@@ -1090,7 +1104,12 @@ namespace CurseWork
                 for (var i = 0; i < x.Length; i++)
                     line.Points.Add(new DataPoint(x[i], yPred[i]));
                 model.Series.Add(line);
+
+                _modelLineSeries = line;
             }
+            else
+                _modelLineSeries = null;
+
             return model;
         }
 

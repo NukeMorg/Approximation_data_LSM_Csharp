@@ -16,6 +16,7 @@
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />
+    <PackageReference Include="PropertyTools.Wpf" Version="3.1.0" />
   </ItemGroup>
 
   <ItemGroup>

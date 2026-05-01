@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:oxy="http://oxyplot.org/wpf"
         xmlns:h="http://helix-toolkit.org/wpf"
+        xmlns:pt="clr-namespace:PropertyTools.Wpf;assembly=PropertyTools.Wpf"
         Title="Регрессионный анализ"
         Width="1200" Height="700" WindowStartupLocation="CenterScreen">
     <DockPanel>
@@ -28,7 +29,7 @@
                 <ColumnDefinition Width="320"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Левая панель: источник данных, настройки -->
+            <!-- Левая панель -->
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
                     <GroupBox Header="Источник данных" Margin="0,0,0,10">
@@ -54,6 +55,7 @@
                         <DataGrid x:Name="PreviewGrid" Height="150" AutoGenerateColumns="True" CellEditEnding="PreviewGrid_OnCellEditEnding"/>
                     </GroupBox>
 
+                    <!-- 2D панель -->
                     <StackPanel x:Name="Panel2DSettings">
                         <GroupBox Header="2D параметры">
                             <StackPanel>
@@ -69,27 +71,63 @@
                                     <ComboBoxItem Content="WLS"/>
                                     <ComboBoxItem Content="GLS"/>
                                 </ComboBox>
+
+                                <!-- Цвет линии модели (2D) -->
+                                <TextBlock Text="Цвет линии модели" Margin="0,8,0,0"/>
+                                <Grid Margin="0,2,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Rectangle x:Name="ColorPreviewLine2D" Grid.Column="0"
+                                               Width="24" Height="24" Margin="0,0,6,0"
+                                               Stroke="Gray" StrokeThickness="1"
+                                               RadiusX="3" RadiusY="3"
+                                               Fill="{Binding LineColor, Converter={StaticResource ColorToBrushConverter}}"/>
+                                    <pt:ColorPicker x:Name="LineColorPicker" Grid.Column="1" Height="24"
+                                                    SelectedColor="{Binding LineColor, Mode=TwoWay}"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
+                        <Button Content="Построить 2D модель" Click="Build2DModel_OnClick" Height="30" Margin="0,15,0,0"/>
                     </StackPanel>
 
-                    <StackPanel x:Name="Panel3DSettings" Visibility="Collapsed">
+                    <!-- 3D панель -->
+                    <StackPanel x:Name="Panel3DSettings" Visibility="Collapsed"
+                                DataContext="{Binding ThreeD}">
                         <GroupBox Header="3D параметры">
                             <StackPanel>
                                 <TextBlock Text="Тип поверхности"/>
-                                <ComboBox x:Name="SurfaceTypeCombo" Height="24" Margin="0,2,0,6" SelectedIndex="0">
+                                <ComboBox x:Name="SurfaceTypeCombo" Height="24" Margin="0,2,0,6"
+                                          SelectedItem="{Binding SurfaceType}">
                                     <ComboBoxItem Content="Плоскость"/>
                                     <ComboBoxItem Content="Квадрика (полная)"/>
                                 </ComboBox>
+
+                                <TextBlock Text="Цвет поверхности" Margin="0,6,0,0"/>
+                                <Grid Margin="0,2,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Rectangle x:Name="ColorPreviewRect" Grid.Column="0"
+                                               Width="24" Height="24" Margin="0,0,6,0"
+                                               Stroke="Gray" StrokeThickness="1"
+                                               RadiusX="3" RadiusY="3"
+                                               Fill="{Binding SurfaceColor, Converter={StaticResource ColorToBrushConverter}}"/>
+                                    <pt:ColorPicker x:Name="SurfaceColorPicker" Grid.Column="1" Height="24"
+                                                    SelectedColor="{Binding SurfaceColor, Mode=TwoWay}"/>
+                                </Grid>
+
+                                <Button Content="Построить 3D модель" Command="{Binding BuildModelCommand}"
+                                        Height="30" Margin="0,15,0,0"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>
-
-                    <Button Content="Построить модель" Click="BuildModel_OnClick" Height="30" Margin="0,15,0,0"/>
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- Центральная область: переключатели и график -->
+            <!-- Центральная область -->
             <Grid Grid.Column="1" Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -114,7 +152,7 @@
                 </Border>
             </Grid>
 
-            <!-- Правая панель: результаты -->
+            <!-- Правая панель результатов -->
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10">
                     <GroupBox Header="Уравнение регрессии" Margin="0,0,0,10">

@@ -47,6 +47,7 @@ namespace CurseWork
             InitializeComponent();
 
             _vm = new MainViewModel { StatusText = "Готово" };
+
             _vm.ThreeD = new Main3DViewModel();
             DataContext = _vm;
 
@@ -128,6 +129,7 @@ namespace CurseWork
         private void Visualize3D(double[] x, double[] y, double[] z, double[] zPred, Color surfaceColor, double[] coeffs)
         {
             Viewport3D.Children.Clear();
+            Viewport3D.Children.Add(new DefaultLights());
 
             // Исходные точки (тёмно-синие)
             var points = new PointsVisual3D();
@@ -143,8 +145,21 @@ namespace CurseWork
             MeshGeometry3D mesh = BuildSurfaceMesh(x, y, zPred, coeffs);
             if (mesh != null)
             {
-                var material = MaterialHelper.CreateMaterial(surfaceColor, 0.5);
-                var model = new GeometryModel3D { Geometry = mesh, Material = material, BackMaterial = material };
+                var brush = new SolidColorBrush(surfaceColor)
+                {
+                    Opacity = 0.5
+                };
+                brush.Freeze();
+
+                var material = new DiffuseMaterial(brush);
+
+                var model = new GeometryModel3D
+                {
+                    Geometry = mesh,
+                    Material = material,
+                    BackMaterial = material
+                };
+
                 Viewport3D.Children.Add(new ModelVisual3D { Content = model });
             }
 
@@ -347,7 +362,10 @@ namespace CurseWork
             if (!is3D)
                 Plot2D.Model = CreateEmptyPlotModel();
             else
+            {
                 Viewport3D.Children.Clear();
+                Viewport3D.Children.Add(new DefaultLights());
+            }
         }
 
         private void Build2DModel()
@@ -661,6 +679,7 @@ namespace CurseWork
         private void Show3DPointsOnly(double[] x, double[] y, double[] z)
         {
             Viewport3D.Children.Clear();
+            Viewport3D.Children.Add(new DefaultLights());
 
             var points = new PointsVisual3D();
             var pointCollection = new Point3DCollection(x.Length);

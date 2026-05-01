@@ -4,6 +4,7 @@
         xmlns:oxy="http://oxyplot.org/wpf"
         xmlns:h="http://helix-toolkit.org/wpf"
         xmlns:pt="clr-namespace:PropertyTools.Wpf;assembly=PropertyTools.Wpf"
+        xmlns:conv="clr-namespace:CurseWork.Core.Converters"
         Title="Регрессионный анализ"
         Width="1200" Height="700" WindowStartupLocation="CenterScreen">
     <DockPanel>
@@ -116,7 +117,8 @@
                                                RadiusX="3" RadiusY="3"
                                                Fill="{Binding SurfaceColor, Converter={StaticResource ColorToBrushConverter}}"/>
                                     <pt:ColorPicker x:Name="SurfaceColorPicker" Grid.Column="1" Height="24"
-                                                    SelectedColor="{Binding SurfaceColor, Mode=TwoWay}"/>
+                                                    SelectedColor="{Binding SurfaceColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
                                 </Grid>
 
                                 <Button Content="Построить 3D модель" Command="{Binding BuildModelCommand}"

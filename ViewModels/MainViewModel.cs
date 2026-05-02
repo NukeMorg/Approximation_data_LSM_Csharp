@@ -12,11 +12,26 @@ namespace CurseWork
         private string _statusText = "Готово";
         private double _mse, _rmse, _r2, _adjR2;
 
+        private bool _isBusy;
+        public bool IsBusy
+        {
+            get => _isBusy;
+            set => Set(ref _isBusy, value);
+        }
+
         private Color _lineColor = (Color)ColorConverter.ConvertFromString("#e74c3c");
+        
         public Color LineColor
         {
             get => _lineColor;
-            set => Set(ref _lineColor, value);
+            set
+            {
+                if (Set(ref _lineColor, value))
+                {
+                    Properties.Settings.Default.LineColor = value.ToString();
+                    Properties.Settings.Default.Save();
+                }
+            }
         }
 
         public string RegressionEquation { get => _regressionEquation; set => Set(ref _regressionEquation, value); }

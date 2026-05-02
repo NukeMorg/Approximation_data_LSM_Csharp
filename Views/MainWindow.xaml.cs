@@ -93,6 +93,15 @@ namespace CurseWork
                 }
             };
 
+            _vm.ThreeD.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(Main3DViewModel.SurfaceColor))
+                {
+                    Properties.Settings.Default.SurfaceColor = _vm.ThreeD.SurfaceColor.ToString();
+                    Properties.Settings.Default.Save();
+                }
+            };
+
             // Проброс коллекций
             _vm.ThreeD.ModelBuilt += () =>
             {
@@ -126,6 +135,23 @@ namespace CurseWork
             Toggle2D.SetValue(RadioButton.GroupNameProperty, "dim");
             Toggle3D.SetValue(RadioButton.GroupNameProperty, "dim");
             Toggle2D.IsChecked = true;
+
+            // Загрузка сохранённых цветов
+            try
+            {
+                var savedLineColor = (Color)ColorConverter.ConvertFromString(Properties.Settings.Default.LineColor);
+                _vm.LineColor = savedLineColor;
+
+                if (_vm.ThreeD != null)
+                {
+                    var savedSurfaceColor = (Color)ColorConverter.ConvertFromString(Properties.Settings.Default.SurfaceColor);
+                    _vm.ThreeD.SurfaceColor = savedSurfaceColor;
+                }
+            }
+            catch
+            {
+                // Если значение повреждено, оставляем цвет по умолчанию
+            }
         }
 
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -135,6 +161,9 @@ namespace CurseWork
                 var newColor = _vm.LineColor;
                 _modelLineSeries.Color = OxyColor.FromRgb(newColor.R, newColor.G, newColor.B);
                 Plot2D.InvalidatePlot(true);   // перерисовать без полной очистки
+
+                Properties.Settings.Default.LineColor = _vm.LineColor.ToString();
+                Properties.Settings.Default.Save();
             }
         }
 
@@ -217,14 +246,77 @@ namespace CurseWork
         }
 
         // Кнопка "Построить 2D модель"
-        private void Build2DModel_OnClick(object sender, RoutedEventArgs e)
+        private async Task Build2DModelAsync()
+        {
+            LoadArraysFromTable();
+            if (_x is null || _y is null) throw new InvalidOperationException("Не удалось выделить X и Y.");
+
+            int degree;
+            if (AutoDegreeCheckBox.IsChecked == true)
+            {
+                _vm.IsBusy = true; // показываем индикатор
+                int maxDegree = (int)DegreeSlider.Maximum; // читаем в UI-потоке
+
+                var result = await Task.Run(() =>
+                {
+                    int bestD = AutoSelectDegree(_x, _y, maxDegree, out double bestMetric);
+                    return (bestD, bestMetric);
+                });
+                degree = result.bestD;
+                _vm.StatusText = $"Автоподбор: степень {degree}, AdjR²={result.bestMetric:F4}";
+                DegreeSlider.Value = degree;
+                DegreeTextBox.Text = degree.ToString();
+            }
+            else degree = ParseDegree();
+
+            var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString() ?? "OLS";
+            var reg = new PolynomialRegression(_x, _y, degree);
+
+            // Тяжёлые вычисления – в фоне
+            _vm.IsBusy = true;
+            try
+            {
+                var coeffs = await Task.Run(() => method switch
+                {
+                    "WLS" => reg.Wls(_weights),
+                    "GLS" => reg.Gls(_cov),
+                    _ => reg.Ols()
+                });
+                var yPred = await Task.Run(() => reg.Predict(_x, coeffs));
+                var metrics = await Task.Run(() => reg.CalculateMetrics(_y, yPred));
+
+                // Обновление UI
+                _coeffs = coeffs;
+                _yPred = yPred;
+                _metrics = metrics;
+
+                _vm.MSE = metrics.Mse;
+                _vm.RMSE = Math.Sqrt(_vm.MSE);
+                _vm.AdjustedR2 = metrics.AdjustedR2;
+                _vm.R2 = metrics.AdjustedR2;
+                _vm.RegressionEquation = FormatEquation(_coeffs);
+                _vm.StatusText = $"OK ({method}). MSE={_vm.MSE:F4}, AdjR²={_vm.AdjustedR2:F4}";
+
+                _vm.UpdateCoefficients(_coeffs);
+                _vm.UpdatePredictions(_x, _yPred);
+                Plot2D.Model = Plot2DModel(_x, _y, _yPred);
+                ApplyGridVisibility();
+            }
+            finally
+            {
+                _vm.IsBusy = false;
+            }
+        }
+
+        private async void Build2DModel_OnClick(object sender, RoutedEventArgs e)
         {
             try
             {
-                Build2DModel();
+                await Build2DModelAsync();
             }
             catch (Exception ex)
             {
+                _vm.IsBusy = false;
                 MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -232,14 +324,13 @@ namespace CurseWork
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e) { }
 
         private void MenuOpen_OnClick(object sender, RoutedEventArgs e) => BrowseAndLoad();
-        private void MenuLoadModel_OnClick(object sender, RoutedEventArgs e) => ImportModel();
-        private void MenuSave_OnClick(object sender, RoutedEventArgs e) => SaveResults();
+ 
         private void MenuExit_OnClick(object sender, RoutedEventArgs e) => Close();
         private void Plot2D_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => Plot2D.ResetAllAxes();
 
         private void BrowseSource_OnClick(object sender, RoutedEventArgs e) => BrowseAndLoad();
 
-        private void LoadData_OnClick(object sender, RoutedEventArgs e)
+        private async void LoadData_OnClick(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -254,11 +345,11 @@ namespace CurseWork
                 if (_table != null)
                     ApplyCurrentTableToData();
                 else
-                    LoadFromPath(SourcePathTextBox.Text);
+                    await LoadFromPathAsync(SourcePathTextBox.Text);
             }
             catch (Exception ex)
             {
-                BusyProgress.Visibility = Visibility.Collapsed;
+                _vm.IsBusy = false;
                 MessageBox.Show(this, ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -345,6 +436,7 @@ namespace CurseWork
                 Toggle2D.IsChecked = false;
 
             bool is3D = Toggle3D.IsChecked == true;
+            ShowGridCheckBox.Visibility = is3D ? Visibility.Collapsed : Visibility.Visible;
 
             _table = null;
             _sourcePath = null;
@@ -382,47 +474,47 @@ namespace CurseWork
             _modelLineSeries = null;
         }
 
-        private void Build2DModel()
-        {
-            LoadArraysFromTable();
-            if (_x is null || _y is null) throw new InvalidOperationException("Не удалось выделить X и Y.");
+        //private void Build2DModel()
+        //{
+        //    LoadArraysFromTable();
+        //    if (_x is null || _y is null) throw new InvalidOperationException("Не удалось выделить X и Y.");
 
-            int degree;
-            if (AutoDegreeCheckBox.IsChecked == true)
-            {
-                BusyProgress.Visibility = Visibility.Visible;
-                degree = AutoSelectDegree(_x, _y, out double bestMetric);
-                BusyProgress.Visibility = Visibility.Collapsed;
-                _vm.StatusText = $"Автоподбор: степень {degree}, AdjR²={bestMetric:F4}";
-                DegreeSlider.Value = degree;
-                DegreeTextBox.Text = degree.ToString();
-            }
-            else degree = ParseDegree();
+        //    int degree;
+        //    if (AutoDegreeCheckBox.IsChecked == true)
+        //    {
+        //        BusyProgress.Visibility = Visibility.Visible;
+        //        degree = AutoSelectDegree(_x, _y, out double bestMetric);
+        //        BusyProgress.Visibility = Visibility.Collapsed;
+        //        _vm.StatusText = $"Автоподбор: степень {degree}, AdjR²={bestMetric:F4}";
+        //        DegreeSlider.Value = degree;
+        //        DegreeTextBox.Text = degree.ToString();
+        //    }
+        //    else degree = ParseDegree();
 
-            var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString() ?? "OLS";
-            var reg = new PolynomialRegression(_x, _y, degree);
-            _coeffs = method switch
-            {
-                "WLS" => reg.Wls(_weights),
-                "GLS" => reg.Gls(_cov),
-                _ => reg.Ols()
-            };
+        //    var method = ((ComboBoxItem)MethodCombo.SelectedItem).Content?.ToString() ?? "OLS";
+        //    var reg = new PolynomialRegression(_x, _y, degree);
+        //    _coeffs = method switch
+        //    {
+        //        "WLS" => reg.Wls(_weights),
+        //        "GLS" => reg.Gls(_cov),
+        //        _ => reg.Ols()
+        //    };
 
-            _yPred = reg.Predict(_x, _coeffs);
-            _metrics = reg.CalculateMetrics(_y, _yPred);
+        //    _yPred = reg.Predict(_x, _coeffs);
+        //    _metrics = reg.CalculateMetrics(_y, _yPred);
 
-            _vm.MSE = _metrics.Value.Mse;
-            _vm.RMSE = Math.Sqrt(_vm.MSE);
-            _vm.AdjustedR2 = _metrics.Value.AdjustedR2;
-            _vm.R2 = _metrics.Value.AdjustedR2;
-            _vm.RegressionEquation = FormatEquation(_coeffs);
-            _vm.StatusText = $"OK ({method}). MSE={_vm.MSE:F4}, AdjR²={_vm.AdjustedR2:F4}";
+        //    _vm.MSE = _metrics.Value.Mse;
+        //    _vm.RMSE = Math.Sqrt(_vm.MSE);
+        //    _vm.AdjustedR2 = _metrics.Value.AdjustedR2;
+        //    _vm.R2 = _metrics.Value.AdjustedR2;
+        //    _vm.RegressionEquation = FormatEquation(_coeffs);
+        //    _vm.StatusText = $"OK ({method}). MSE={_vm.MSE:F4}, AdjR²={_vm.AdjustedR2:F4}";
 
-            _vm.UpdateCoefficients(_coeffs);
-            _vm.UpdatePredictions(_x, _yPred);
-            Plot2D.Model = Plot2DModel(_x, _y, _yPred);
-            ApplyGridVisibility();
-        }
+        //    _vm.UpdateCoefficients(_coeffs);
+        //    _vm.UpdatePredictions(_x, _yPred);
+        //    Plot2D.Model = Plot2DModel(_x, _y, _yPred);
+        //    ApplyGridVisibility();
+        //}
 
 
         private void AddAxisLabel(HelixViewport3D viewport, string text, Point3D position, Color color)
@@ -537,9 +629,8 @@ namespace CurseWork
         private int ParseDegree() =>
             int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d >= 1 ? d : 3;
 
-        private int AutoSelectDegree(double[] x, double[] y, out double bestMetric)
+        private int AutoSelectDegree(double[] x, double[] y, int maxDegree, out double bestMetric)
         {
-            int maxDegree = (int)DegreeSlider.Maximum;
             int bestDegree = 1;
             double bestAdjR2 = double.MinValue;
 
@@ -630,7 +721,7 @@ namespace CurseWork
             }
         }
 
-        private void BrowseAndLoad()
+        private async void BrowseAndLoad()
         {
             var dlg = new OpenFileDialog
             {
@@ -638,7 +729,60 @@ namespace CurseWork
             };
             if (dlg.ShowDialog(this) != true) return;
             SourcePathTextBox.Text = dlg.FileName;
-            LoadFromPath(dlg.FileName);
+            await LoadFromPathAsync(dlg.FileName);
+        }
+
+        private async Task LoadFromPathAsync(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new InvalidOperationException("Укажите путь к файлу/БД.");
+
+            _sourcePath = path;
+            _vm.IsBusy = true;
+            try
+            {
+                bool hasHeaders = HasHeadersCheckBox.IsChecked == true; // ← прочитали в UI-потоке
+
+                // Загрузка файла – потенциально длительная операция
+                var loaded = await Task.Run(() => _datasetReader.LoadAuto(path, hasHeaders, previewRows: 200));
+                _table = loaded.RawTable;
+                _tableModified = false;
+
+                // Обновление UI – эти методы быстро работают, можно вызывать прямо в UI-потоке
+                UpdatePreviewGridColumns();
+                _vm.Coefficients.Clear();
+                _vm.Predictions.Clear();
+
+                PopulateColumnCombos(_table);
+                Populate3DColumnCombos();
+                LoadArraysFromTable();
+
+                _weights = null;
+                _cov = null;
+
+                if (_x is not null && _y is not null)
+                {
+                    Plot2D.Model = Plot2DModel(_x, _y, yPred: null);
+                    ApplyGridVisibility();
+                }
+
+                _vm.StatusText = loaded.Message;
+
+                if (Toggle3D.IsChecked == true)
+                {
+                    var xyz = LoadArraysFromTableFor3D();
+                    if (xyz != null)
+                    {
+                        var (xArr, yArr, zArr) = xyz.Value;
+                        _vm.ThreeD?.SetData(xArr, yArr, zArr);
+                        Show3DPointsOnly(xArr, yArr, zArr);
+                    }
+                }
+            }
+            finally
+            {
+                _vm.IsBusy = false;
+            }
         }
 
         private void LoadFromPath(string? path)
@@ -819,140 +963,7 @@ namespace CurseWork
                 return (xyz.X, xyz.Y, xyz.Z);
             }
         }
-
-        private void ImportModel_Click(object sender, RoutedEventArgs e) => ImportModel();
-        private void ExportModel_Click(object sender, RoutedEventArgs e) => ExportModel();
-
-        private void ImportModel()
-        {
-            var dlg = new OpenFileDialog
-            {
-                Filter = "JSON модель (*.json)|*.json|Все файлы (*.*)|*.*",
-                Title = "Выберите файл модели"
-            };
-            if (dlg.ShowDialog(this) != true) return;
-
-            try
-            {
-                var model = ModelPersistence.LoadModel(dlg.FileName);
-
-                _coeffs = model.Coefficients;
-                _metrics = new RegressionMetrics(model.MSE, model.R2Adjusted);
-                _yPred = model.Predictions;
-                _sourcePath = model.SourceFile;
-
-                if (model.X != null)
-                {
-                    _x = model.X;
-                    _y = null;
-                }
-                else if (_x == null)
-                {
-                    MessageBox.Show("Модель не содержит координат X. Сначала загрузите данные.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
-                }
-
-                _vm.MSE = model.MSE;
-                _vm.RMSE = Math.Sqrt(model.MSE);
-                _vm.AdjustedR2 = model.R2Adjusted;
-                _vm.R2 = model.R2Adjusted;
-                _vm.RegressionEquation = FormatEquation(_coeffs);
-                _vm.StatusText = $"Модель загружена из {dlg.FileName}";
-
-                _vm.UpdateCoefficients(_coeffs);
-                if (_x != null)
-                    _vm.UpdatePredictions(_x, _yPred);
-                else
-                    _vm.ClearPredictions();
-
-                if (_x != null && _y != null)
-                    Plot2D.Model = Plot2DModel(_x, _y, _yPred);
-                else if (_x != null)
-                {
-                    var model2D = CreateEmptyPlotModel();
-                    var line = new LineSeries { Title = "Модель", Color = OxyColor.Parse("#e74c3c"), StrokeThickness = 2 };
-                    for (int i = 0; i < _x.Length && i < _yPred.Length; i++)
-                        line.Points.Add(new DataPoint(_x[i], _yPred[i]));
-                    model2D.Series.Add(line);
-                    Plot2D.Model = model2D;
-                }
-                ApplyGridVisibility();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка загрузки модели: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void ExportModel()
-        {
-            if (_coeffs is null || _yPred is null || _metrics is null)
-            {
-                MessageBox.Show("Сначала постройте модель.", "Нет модели", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var dlg = new SaveFileDialog
-            {
-                Filter = "JSON модель (*.json)|*.json|Все файлы (*.*)|*.*",
-                AddExtension = true,
-                FileName = "model"
-            };
-            if (dlg.ShowDialog(this) != true) return;
-
-            try
-            {
-                ModelPersistence.SaveModel(
-                    dlg.FileName,
-                    _coeffs,
-                    _metrics.Value.Mse,
-                    _metrics.Value.AdjustedR2,
-                    _yPred,
-                    _x,
-                    _sourcePath ?? "");
-                _vm.StatusText = $"Модель экспортирована: {dlg.FileName}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка экспорта модели: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        private void SaveResults()
-        {
-            if (_coeffs is null || _yPred is null || _metrics is null)
-            {
-                MessageBox.Show(this, "Сначала постройте модель.", "Нет результата", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var dlg = new SaveFileDialog
-            {
-                Filter = "JSON модель (*.json)|*.json|TXT (*.txt)|*.txt|CSV (*.csv)|*.csv|Excel (*.xlsx)|*.xlsx|SQLite (*.db;*.sqlite)|*.db;*.sqlite|Все файлы (*.*)|*.*",
-                AddExtension = true,
-                FileName = "model"
-            };
-            if (dlg.ShowDialog(this) != true) return;
-
-            if (Path.GetExtension(dlg.FileName).ToLowerInvariant() == ".json")
-            {
-                ModelPersistence.SaveModel(
-                    dlg.FileName,
-                    _coeffs,
-                    _metrics.Value.Mse,
-                    _metrics.Value.AdjustedR2,
-                    _yPred,
-                    _x,
-                    _sourcePath ?? "");
-            }
-            else
-            {
-                _resultSaver.SaveResults(dlg.FileName, _coeffs, _metrics.Value.Mse, _metrics.Value.AdjustedR2, _yPred, _sourcePath ?? "");
-            }
-
-            _vm.StatusText = $"Сохранено: {dlg.FileName}";
-        }
-
+   
         private void SaveReport_Click(object sender, RoutedEventArgs e)
         {
             if (_coeffs is null || _metrics is null || _yPred is null)

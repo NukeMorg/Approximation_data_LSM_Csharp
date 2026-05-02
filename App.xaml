@@ -6,5 +6,6 @@
              StartupUri="Views/MainWindow.xaml">
     <Application.Resources>
         <converters:ColorToBrushConverter x:Key="ColorToBrushConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </Application.Resources>
 </Application>

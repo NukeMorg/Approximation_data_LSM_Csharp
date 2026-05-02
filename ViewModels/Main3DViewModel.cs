@@ -24,7 +24,7 @@ namespace CurseWork.ViewModels
             get => _surfaceColor;
             set
             {
-                if (Set(ref _surfaceColor, value))
+                if (Set(ref _surfaceColor, value) && _x != null && _y != null && _z != null)
                     RequestVisualize?.Invoke();
             }
         }
@@ -54,7 +54,7 @@ namespace CurseWork.ViewModels
 
         public Main3DViewModel()
         {
-            BuildModelCommand = new RelayCommand(_ => BuildModel());
+            BuildModelCommand = new AsyncRelayCommand(BuildModelAsync);
         }
 
         public event Action? ModelBuilt;
@@ -73,17 +73,37 @@ namespace CurseWork.ViewModels
             return (_x, _y, _z, _zPred);
         }
 
-        private void BuildModel()
+        private async Task BuildModelAsync()
         {
             if (_x == null || _y == null || _z == null)
                 throw new InvalidOperationException("Нет данных для построения 3D модели");
 
             bool isPlane = SurfaceType?.Contains("Плоскость") == true;
 
+            // Сохраняем копии массивов, чтобы избежать изменений извне во время вычислений
+            double[] xCopy = _x, yCopy = _y, zCopy = _z;
+
+            // Выполняем тяжёлые вычисления в фоновом потоке
+            var result = await Task.Run(() =>
+            {
+                if (isPlane)
+                {
+                    var reg = new PlaneRegression(xCopy, yCopy, zCopy);
+                    var res = reg.Fit();
+                    return (object)res;
+                }
+                else
+                {
+                    var reg = new QuadraticSurfaceRegression(xCopy, yCopy, zCopy);
+                    var res = reg.Fit();
+                    return (object)res;
+                }
+            });
+
+            // Обновляем UI-связанные свойства (уже в UI-потоке)
             if (isPlane)
             {
-                var reg = new PlaneRegression(_x, _y, _z);
-                var res = reg.Fit();
+                var res = (PlaneResult)result;
                 _zPred = res.ZPred;
                 Coefficients.Clear();
                 Coefficients.Add(new CoefficientItem3D { Index = 0, Value = res.A });
@@ -94,8 +114,7 @@ namespace CurseWork.ViewModels
             }
             else
             {
-                var reg = new QuadraticSurfaceRegression(_x, _y, _z);
-                var res = reg.Fit();
+                var res = (SurfaceResult)result;
                 _zPred = res.ZPred;
                 Coefficients.Clear();
                 for (int i = 0; i < res.Coefficients.Length; i++)
@@ -112,6 +131,7 @@ namespace CurseWork.ViewModels
             RequestVisualize?.Invoke();
             ModelBuilt?.Invoke();
         }
+
 
         private void UpdateMetrics(RegressionMetrics m)
         {
@@ -146,12 +166,4 @@ namespace CurseWork.ViewModels
         public double PredictedZ { get; set; }
     }
 
-    public class RelayCommand : ICommand
-    {
-        private readonly Action<object?> _execute;
-        public RelayCommand(Action<object?> execute) => _execute = execute;
-        public event EventHandler? CanExecuteChanged;
-        public bool CanExecute(object? parameter) => true;
-        public void Execute(object? parameter) => _execute(parameter);
-    }
 }

@@ -1,18 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Media3D;
 using CurseWork.Core.FileIO;
 using CurseWork.Core.Regression;
 using CurseWork.Core.Regression.Regression2D;
-using CurseWork.Core.Saving;
+using CurseWork.Core.Report;
 using CurseWork.ViewModels;
 using HelixToolkit.Wpf;
 using Microsoft.Win32;
@@ -20,6 +9,14 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using OxyPlot.Wpf;
+using System.Data;
+using System.Globalization;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 
 namespace CurseWork
 {
@@ -27,8 +24,8 @@ namespace CurseWork
     {
         private readonly MainViewModel _vm;
         private readonly DatasetReader _datasetReader = new();
-        private readonly ResultSaver _resultSaver = new();
         private readonly TableSourceSaver _tableSourceSaver = new();
+        private readonly ReportService _reportService = new();
 
         private DataTable? _table;
         private string? _sourcePath;
@@ -164,6 +161,30 @@ namespace CurseWork
 
                 Properties.Settings.Default.LineColor = _vm.LineColor.ToString();
                 Properties.Settings.Default.Save();
+            }
+        }
+
+        private byte[]? CaptureViewport3D()
+        {
+            try
+            {
+                // Рендерим Viewport3D в растровое изображение
+                var renderBitmap = new RenderTargetBitmap(
+                    (int)Viewport3D.ActualWidth, (int)Viewport3D.ActualHeight,
+                    96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                renderBitmap.Render(Viewport3D);
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+                using var stream = new MemoryStream();
+                encoder.Save(stream);
+                return stream.ToArray();
+            }
+            catch (Exception ex)
+            {
+                // Логирование ошибки (по желанию)
+                System.Diagnostics.Debug.WriteLine($"Ошибка скриншота 3D: {ex.Message}");
+                return null;
             }
         }
 
@@ -324,7 +345,7 @@ namespace CurseWork
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e) { }
 
         private void MenuOpen_OnClick(object sender, RoutedEventArgs e) => BrowseAndLoad();
- 
+
         private void MenuExit_OnClick(object sender, RoutedEventArgs e) => Close();
         private void Plot2D_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e) => Plot2D.ResetAllAxes();
 
@@ -785,55 +806,6 @@ namespace CurseWork
             }
         }
 
-        private void LoadFromPath(string? path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                throw new InvalidOperationException("Укажите путь к файлу/БД.");
-
-            _sourcePath = path;
-            BusyProgress.Visibility = Visibility.Visible;
-            try
-            {
-                var loaded = _datasetReader.LoadAuto(path, HasHeadersCheckBox.IsChecked == true, previewRows: 200);
-                _table = loaded.RawTable;
-                _tableModified = false;
-
-                UpdatePreviewGridColumns();
-                _vm.Coefficients.Clear();
-                _vm.Predictions.Clear();
-
-                PopulateColumnCombos(_table);
-                Populate3DColumnCombos();
-                LoadArraysFromTable();
-
-                _weights = null;
-                _cov = null;
-
-                if (_x is not null && _y is not null)
-                {
-                    Plot2D.Model = Plot2DModel(_x, _y, yPred: null);
-                    ApplyGridVisibility();
-                }
-
-                _vm.StatusText = loaded.Message;
-
-                if (Toggle3D.IsChecked == true)
-                {
-                    var xyz = LoadArraysFromTableFor3D();
-                    if (xyz != null)
-                    {
-                        var (xArr, yArr, zArr) = xyz.Value;
-                        _vm.ThreeD?.SetData(xArr, yArr, zArr);
-                        Show3DPointsOnly(xArr, yArr, zArr);
-                    }
-                }
-            }
-            finally
-            {
-                BusyProgress.Visibility = Visibility.Collapsed;
-            }
-        }
-
         private void Show3DPointsOnly(double[] x, double[] y, double[] z)
         {
             Viewport3D.Children.Clear();
@@ -963,18 +935,60 @@ namespace CurseWork
                 return (xyz.X, xyz.Y, xyz.Z);
             }
         }
-   
+
         private void SaveReport_Click(object sender, RoutedEventArgs e)
         {
-            if (_coeffs is null || _metrics is null || _yPred is null)
+            IRegressionResult? result = null;
+
+            if (Toggle2D.IsChecked == true)
             {
-                MessageBox.Show("Сначала постройте модель.", "Нет данных", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (_coeffs == null || _metrics == null || _x == null || _yPred == null)
+                {
+                    MessageBox.Show("Сначала постройте 2D модель.", "Нет данных", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                result = new Regression2DResult(
+                    _vm.RegressionEquation,
+                    _coeffs,
+                    _metrics.Value,
+                    _x,
+                    _yPred,
+                    Plot2D.Model);
+            }
+            else if (Toggle3D.IsChecked == true)
+            {
+                var vm3d = _vm.ThreeD;
+                if (vm3d == null || vm3d.Coefficients.Count == 0)
+                {
+                    MessageBox.Show("Сначала постройте 3D модель.", "Нет данных", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                try
+                {
+                    var (xArr, yArr, zArr, zPred) = vm3d.GetVisualizationData();
+                    result = new Regression3DResult(
+                        vm3d.RegressionEquation,
+                        vm3d.Coefficients.Select(c => c.Value).ToArray(),
+                        new RegressionMetrics(vm3d.MSE, vm3d.AdjustedR2),
+                        xArr,
+                        yArr,
+                        zPred,
+                        CaptureViewport3D());
+                }
+                catch (InvalidOperationException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+            else
+            {
                 return;
             }
 
             var dlg = new SaveFileDialog
             {
-                Filter = "Excel отчёт (*.xlsx)|*.xlsx|Word отчёт (*.docx)|*.docx|Текстовый файл (*.txt)|*.txt|Все файлы (*.*)|*.*",
+                Filter = "Word отчёт (*.docx)|*.docx|Excel отчёт (*.xlsx)|*.xlsx|Текстовый (*.txt)|*.txt|CSV (*.csv)|*.csv|SQLite БД (*.db)|*.db|Все файлы|*.*",
                 AddExtension = true,
                 FileName = "report"
             };
@@ -982,59 +996,12 @@ namespace CurseWork
 
             try
             {
-                if (dlg.FilterIndex == 1)
-                {
-                    _resultSaver.SaveReportToExcel(
-                        dlg.FileName,
-                        _coeffs,
-                        _metrics.Value.Mse,
-                        _metrics.Value.AdjustedR2,
-                        _yPred,
-                        _x,
-                        _sourcePath ?? "",
-                        _vm.RegressionEquation);
-                }
-                else if (dlg.FilterIndex == 2)
-                {
-                    _resultSaver.SaveReportToWord(
-                        dlg.FileName,
-                        _coeffs,
-                        _metrics.Value.Mse,
-                        _metrics.Value.AdjustedR2,
-                        _yPred,
-                        _x,
-                        _sourcePath ?? "",
-                        _vm.RegressionEquation);
-                }
-                else
-                {
-                    var sb = new StringBuilder();
-                    sb.AppendLine("ОТЧЁТ ПО РЕГРЕССИОННОЙ МОДЕЛИ");
-                    sb.AppendLine(new string('=', 40));
-                    sb.AppendLine($"Дата: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                    sb.AppendLine($"Источник данных: {_sourcePath ?? "не указан"}");
-                    sb.AppendLine();
-                    sb.AppendLine("УРАВНЕНИЕ РЕГРЕССИИ:");
-                    sb.AppendLine(_vm.RegressionEquation);
-                    sb.AppendLine();
-                    sb.AppendLine("КОЭФФИЦИЕНТЫ:");
-                    for (int i = 0; i < _coeffs.Length; i++)
-                        sb.AppendLine($"  a{i} = {_coeffs[i]:G6}");
-                    sb.AppendLine();
-                    sb.AppendLine("МЕТРИКИ КАЧЕСТВА:");
-                    sb.AppendLine($"  MSE            = {_vm.MSE:F6}");
-                    sb.AppendLine($"  RMSE           = {_vm.RMSE:F6}");
-                    sb.AppendLine($"  R²             = {_vm.R2:F6}");
-                    sb.AppendLine($"  Скоррект. R²   = {_vm.AdjustedR2:F6}");
-
-                    File.WriteAllText(dlg.FileName, sb.ToString(), Encoding.UTF8);
-                }
-
+                _reportService.SaveReport(dlg.FileName, result);
                 _vm.StatusText = $"Отчёт сохранён: {dlg.FileName}";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка сохранения отчёта: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

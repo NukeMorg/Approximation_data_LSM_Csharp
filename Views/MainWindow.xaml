@@ -12,15 +12,39 @@
             <MenuItem Header="Файл">
                 <MenuItem Header="Открыть данные" Click="MenuOpen_OnClick"/>
                 <Separator/>
+                <MenuItem Header="Сохранить отчёт" Click="SaveReport_Click"/>
+                <MenuItem Header="Экспорт графика" Click="ExportPlot_Click"/>
+                <Separator/>
+                <MenuItem Header="Закрыть" Click="MenuClose_OnClick"/>
                 <MenuItem Header="Выход" Click="MenuExit_OnClick"/>
+            </MenuItem>
+            <MenuItem Header="Справка">
+                <MenuItem Header="Помощь" Click="HelpMenuItem_Click"/>
+                <Separator/>
+                <MenuItem Header="О программе" Click="AboutMenuItem_Click"/>
+            </MenuItem>
+            <MenuItem Header="Matlab">
             </MenuItem>
         </Menu>
 
         <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem Content="{Binding StatusText}"/>
-            <ProgressBar x:Name="BusyProgress" Width="150" Height="14" IsIndeterminate="True"
-                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}"/>
-        </StatusBar>
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <DockPanel LastChildFill="False" />
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            <StatusBarItem DockPanel.Dock="Left">
+                <TextBlock Text="{Binding StatusText}" />
+            </StatusBarItem>
+            <StatusBarItem DockPanel.Dock="Left">
+                <ProgressBar x:Name="BusyProgress" Width="150" Height="14" IsIndeterminate="True"
+                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            </StatusBarItem>
+            <!-- Кнопка выхода: прилипает к правому краю -->
+            <StatusBarItem DockPanel.Dock="Right" Margin="5,0">
+                <Button Content="Выход" Width="60" Height="22" Click="MenuExit_OnClick"/>
+            </StatusBarItem>
+        </StatusBar> 
 
         <Grid>
             <Grid.ColumnDefinitions>

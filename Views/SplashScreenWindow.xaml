@@ -1,0 +1,64 @@
+﻿<Window x:Class="CurseWork.Views.SplashScreenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        Width="480" Height="320">
+    <Border Background="#FF1E3A5F" CornerRadius="12">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- Университет -->
+                <RowDefinition Height="Auto"/>
+                <!-- Факультет -->
+                <RowDefinition Height="Auto"/>
+                <!-- Название программы -->
+                <RowDefinition Height="*"/>
+                <!-- Растяжимая область -->
+                <RowDefinition Height="Auto"/>
+                <!-- Название и автор -->
+                <RowDefinition Height="Auto"/>
+                <!-- Загрузка -->
+            </Grid.RowDefinitions>
+
+            <!-- Белорусский национальный технический университет -->
+            <TextBlock Grid.Row="0" 
+                       Text="Белорусский Национальный Технический Университет"
+                       FontSize="13" Foreground="White" 
+                       HorizontalAlignment="Center" TextWrapping="Wrap"
+                       TextAlignment="Center" Margin="0,0,0,8"/>
+
+            <!-- Факультет информационных технологий и робототехники -->
+            <TextBlock Grid.Row="1" 
+                       Text="Факультет информационных технологий и робототехники"
+                       FontSize="11" Foreground="#FFC0D0E0" 
+                       HorizontalAlignment="Center" TextWrapping="Wrap"
+                       TextAlignment="Center" Margin="0,0,0,6"/>
+
+            <!-- Описание программы -->
+            <TextBlock Grid.Row="2" 
+                       Text="Программа реализации метода наименьших квадратов"
+                       FontSize="10" Foreground="#FFA0C0E0" 
+                       HorizontalAlignment="Center" TextWrapping="Wrap"
+                       TextAlignment="Center" Margin="0,33,0,147" Grid.RowSpan="2"/>
+
+            <!-- Основной заголовок и автор -->
+            <StackPanel Grid.Row="4" HorizontalAlignment="Center">
+                <TextBlock Text="Моргавчук Н.И., гр. 10701225"
+                           FontSize="11" Foreground="#FFB0D0F0" 
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Статус загрузки -->
+            <TextBlock Grid.Row="5" Text="Загрузка..."
+                       Foreground="#FF90B0D0" HorizontalAlignment="Center"
+                       FontSize="10" Margin="0,12,0,0"/>
+            <TextBlock Text="Регрессионный анализ"
+                           FontSize="26" Foreground="White" 
+                           FontWeight="Bold" HorizontalAlignment="Center"
+                           Margin="0,49,0,62" Grid.Row="3"/>
+        </Grid>
+    </Border>
+</Window>

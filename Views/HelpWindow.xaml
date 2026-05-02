@@ -1,0 +1,33 @@
+﻿<Window x:Class="CurseWork.Views.HelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Справка" Width="800" Height="600"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TreeView Grid.Column="0" Name="HelpTree" SelectedItemChanged="HelpTree_SelectedItemChanged">
+            <TreeViewItem Header="Введение" Tag="intro"/>
+            <TreeViewItem Header="Интерфейс программы" Tag="interface"/>
+            <TreeViewItem Header="Работа с данными" Tag="data"/>
+            <TreeViewItem Header="2D режим" Tag="2d">
+                <TreeViewItem Header="Полиномиальная регрессия" Tag="poly"/>
+                <TreeViewItem Header="Методы (OLS, WLS, GLS)" Tag="methods"/>
+                <TreeViewItem Header="Автоподбор степени" Tag="auto"/>
+            </TreeViewItem>
+            <TreeViewItem Header="3D режим" Tag="3d">
+                <TreeViewItem Header="Плоскость" Tag="plane"/>
+                <TreeViewItem Header="Квадрика" Tag="quadric"/>
+            </TreeViewItem>
+            <TreeViewItem Header="Сохранение и экспорт" Tag="save"/>
+        </TreeView>
+
+        <!-- Правая часть – динамический контент -->
+        <ScrollViewer Grid.Column="1" Margin="10,0,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Name="HelpContentPanel"/>
+        </ScrollViewer>
+    </Grid>
+</Window>

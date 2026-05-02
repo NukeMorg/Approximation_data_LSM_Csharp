@@ -3,6 +3,7 @@ using CurseWork.Core.Regression;
 using CurseWork.Core.Regression.Regression2D;
 using CurseWork.Core.Report;
 using CurseWork.ViewModels;
+using CurseWork.Views;
 using HelixToolkit.Wpf;
 using Microsoft.Win32;
 using OxyPlot;
@@ -149,6 +150,48 @@ namespace CurseWork
             {
                 // Если значение повреждено, оставляем цвет по умолчанию
             }
+        }
+
+        private void MenuClose_OnClick(object sender, RoutedEventArgs e)
+        {
+            // Сброс данных и интерфейса – аналог «Закрыть файл»
+            _table = null;
+            _sourcePath = null;
+            _tableModified = false;
+            _x = _y = null;
+            _weights = null; _cov = null;
+            _coeffs = null; _yPred = null; _metrics = null;
+
+            PreviewGrid.ItemsSource = null;
+            XColumnCombo.ItemsSource = null;
+            YColumnCombo.ItemsSource = null;
+            ZColumnCombo.ItemsSource = null;
+            SourcePathTextBox.Text = "";
+
+            _vm.RegressionEquation = "";
+            _vm.Coefficients.Clear();
+            _vm.Predictions.Clear();
+            _vm.MSE = _vm.RMSE = _vm.R2 = _vm.AdjustedR2 = 0;
+            _vm.StatusText = "Готово";
+
+            Plot2D.Model = CreateEmptyPlotModel();
+            ApplyGridVisibility();
+            Viewport3D.Children.Clear();
+            Viewport3D.Children.Add(new DefaultLights());
+        }
+
+        private void HelpMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var helpWindow = new HelpWindow();
+            helpWindow.Owner = this;
+            helpWindow.ShowDialog();
+        }
+
+        private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var aboutWindow = new AboutWindow();
+            aboutWindow.Owner = this;
+            aboutWindow.ShowDialog();
         }
 
         private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -485,7 +528,10 @@ namespace CurseWork
             _vm.MSE = _vm.RMSE = _vm.R2 = _vm.AdjustedR2 = 0;
 
             if (!is3D)
+            {
                 Plot2D.Model = CreateEmptyPlotModel();
+                ApplyGridVisibility();
+            }
             else
             {
                 Viewport3D.Children.Clear();
@@ -1055,8 +1101,16 @@ namespace CurseWork
         private static PlotModel CreateEmptyPlotModel()
         {
             var model = new PlotModel { Title = "Аппроксимация" };
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, MajorGridlineStyle = LineStyle.Dash });
-            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, MajorGridlineStyle = LineStyle.Dash });
+            model.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Bottom,
+                MajorGridlineStyle = LineStyle.None          // ← было LineStyle.Dash
+            });
+            model.Axes.Add(new LinearAxis
+            {
+                Position = AxisPosition.Left,
+                MajorGridlineStyle = LineStyle.None
+            });
             return model;
         }
 
@@ -1104,39 +1158,66 @@ namespace CurseWork
 
         private void ExportPlot_Click(object sender, RoutedEventArgs e)
         {
-            if (Plot2D.Model == null)
+            // Определяем активный режим
+            bool is2D = Toggle2D.IsChecked == true;
+            bool is3D = Toggle3D.IsChecked == true;
+
+            if (is2D && Plot2D.Model == null)
             {
-                MessageBox.Show("Нет графика для экспорта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Нет 2D графика для экспорта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (is3D && Viewport3D.Children.Count == 0)
+            {
+                MessageBox.Show("Нет 3D сцены для экспорта.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             var dlg = new SaveFileDialog
             {
-                Filter = "PNG Image (*.png)|*.png|SVG Image (*.svg)|*.svg",
+                Filter = is2D
+                    ? "PNG Image (*.png)|*.png|SVG Image (*.svg)|*.svg"
+                    : "PNG Image (*.png)|*.png",   // для 3D только PNG
                 AddExtension = true,
-                FileName = "plot"
+                FileName = is2D ? "plot2D" : "plot3D"
             };
             if (dlg.ShowDialog(this) != true) return;
 
             try
             {
-                if (dlg.FilterIndex == 1)
+                if (is2D)
                 {
-                    var exporter = new PngExporter { Width = 800, Height = 600, Resolution = 96 };
-                    using var stream = File.Create(dlg.FileName);
-                    exporter.Export(Plot2D.Model, stream);
+                    if (dlg.FilterIndex == 1) // PNG
+                    {
+                        var exporter = new PngExporter { Width = 800, Height = 600, Resolution = 96 };
+                        using var stream = File.Create(dlg.FileName);
+                        exporter.Export(Plot2D.Model, stream);
+                    }
+                    else // SVG
+                    {
+                        var exporter = new OxyPlot.Wpf.SvgExporter { Width = 800, Height = 600 };
+                        using var stream = File.Create(dlg.FileName);
+                        exporter.Export(Plot2D.Model, stream);
+                    }
                 }
-                else
+                else // 3D
                 {
-                    var exporter = new OxyPlot.Wpf.SvgExporter { Width = 800, Height = 600 };
-                    using var stream = File.Create(dlg.FileName);
-                    exporter.Export(Plot2D.Model, stream);
+                    var imageBytes = CaptureViewport3D();
+                    if (imageBytes != null)
+                    {
+                        File.WriteAllBytes(dlg.FileName, imageBytes);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Не удалось захватить 3D изображение.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
                 }
                 _vm.StatusText = $"График сохранён: {dlg.FileName}";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка экспорта графика: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Ошибка экспорта: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

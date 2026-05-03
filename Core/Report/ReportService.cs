@@ -14,7 +14,8 @@ namespace CurseWork.Core.Report
             [".txt"] = new TextReportStrategy(),
             [".csv"] = new TextReportStrategy(),
             [".db"] = new DatabaseReportStrategy(),
-            [".sqlite"] = new DatabaseReportStrategy()
+            [".sqlite"] = new DatabaseReportStrategy(),
+            [".pdf"] = new PdfReportStrategy()
         };
 
         public void SaveReport(string filePath, IRegressionResult result)

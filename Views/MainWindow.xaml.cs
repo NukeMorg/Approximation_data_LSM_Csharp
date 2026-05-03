@@ -1098,7 +1098,7 @@ namespace CurseWork
 
             var dlg = new SaveFileDialog
             {
-                Filter = "Word отчёт (*.docx)|*.docx|Excel отчёт (*.xlsx)|*.xlsx|Текстовый (*.txt)|*.txt|CSV (*.csv)|*.csv|SQLite БД (*.db)|*.db|Все файлы|*.*",
+                Filter = "Word отчёт (*.docx)|*.docx|Excel отчёт (*.xlsx)|*.xlsx|PDF отчёт (*.pdf)|*.pdf|Текстовый (*.txt)|*.txt|CSV (*.csv)|*.csv|SQLite БД (*.db)|*.db|Все файлы|*.*",
                 AddExtension = true,
                 FileName = "report"
             };
@@ -1139,27 +1139,37 @@ namespace CurseWork
 
         private static string FormatEquation(IReadOnlyList<double> coeffs)
         {
-            if (coeffs.Count == 0) return "";
+            if (coeffs == null || coeffs.Count == 0) return "";
+
             char[] superscripts = { '⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹' };
             var parts = new List<string>();
+
             for (int i = 0; i < coeffs.Count; i++)
             {
                 double a = coeffs[i];
-                if (Math.Abs(a) < 1e-15) continue;
-                string signPart;
-                if (parts.Count == 0)
-                    signPart = a.ToString("G6", CultureInfo.InvariantCulture);
-                else
-                    signPart = (a >= 0 ? "+ " : "- ") + Math.Abs(a).ToString("G6", CultureInfo.InvariantCulture);
+                if (Math.Abs(a) < 1e-12) continue; // отсекаем нулевые коэффициенты
+
+                string sign = (parts.Count == 0) ? "" : (a >= 0 ? "+ " : "- ");
+                double absValue = Math.Abs(a);
+                string coeffStr = absValue.ToString("G6", CultureInfo.InvariantCulture);
+
                 string varPart = i switch
                 {
-                    0 => "",
-                    1 => "·x",
-                    _ => "·x" + string.Concat(i.ToString().Select(c => superscripts[c - '0']))
+                    0 => "",                                      // свободный член
+                    1 => "·x",                                    // x¹
+                    _ => "·x" + ToSuperscript(i, superscripts)    // x², x³, x⁴...
                 };
-                parts.Add(signPart + varPart);
+
+                parts.Add($"{sign}{coeffStr}{varPart}");
             }
-            return parts.Count == 0 ? "y = 0" : "y = " + string.Join(" ", parts);
+
+            if (parts.Count == 0) return "y = 0";
+            return "y = " + string.Join(" ", parts);
+        }
+
+        private static string ToSuperscript(int n, char[] superscripts)
+        {
+            return string.Concat(n.ToString().Select(c => superscripts[c - '0']));
         }
 
         private static PlotModel CreateEmptyPlotModel()

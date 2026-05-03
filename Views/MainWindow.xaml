@@ -23,8 +23,8 @@
                 <Separator/>
                 <MenuItem Header="О программе" Click="AboutMenuItem_Click"/>
             </MenuItem>
-            <MenuItem Header="Matlab">
-            </MenuItem>
+            <MenuItem Header="Matlab" Click="MatlabBuild_Click" />
+
         </Menu>
 
         <StatusBar DockPanel.Dock="Bottom">

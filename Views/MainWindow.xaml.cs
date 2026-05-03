@@ -1,4 +1,5 @@
 using CurseWork.Core.FileIO;
+using CurseWork.Core.Matlab;
 using CurseWork.Core.Regression;
 using CurseWork.Core.Regression.Regression2D;
 using CurseWork.Core.Report;
@@ -27,6 +28,7 @@ namespace CurseWork
         private readonly DatasetReader _datasetReader = new();
         private readonly TableSourceSaver _tableSourceSaver = new();
         private readonly ReportService _reportService = new();
+        private readonly MatlabService _matlabService;
 
         private DataTable? _table;
         private string? _sourcePath;
@@ -44,6 +46,8 @@ namespace CurseWork
         public MainWindow()
         {
             InitializeComponent();
+
+            _matlabService = new MatlabService(Dispatcher);
 
             _vm = new MainViewModel { StatusText = "Готово" };
             _vm.PropertyChanged += OnViewModelPropertyChanged;
@@ -149,6 +153,66 @@ namespace CurseWork
             catch
             {
                 // Если значение повреждено, оставляем цвет по умолчанию
+            }
+
+            Closed += (s, e) => _matlabService.Dispose();
+
+        }
+
+        // Единый обработчик – сам определяет 2D или 3D
+        private async void MatlabBuild_Click(object sender, RoutedEventArgs e)
+        {
+            if (Toggle2D.IsChecked == true)
+            {
+                if (_x == null || _y == null)
+                {
+                    MessageBox.Show("Нет данных для 2D", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                int degree = ParseDegree();
+                string method = ((ComboBoxItem)MethodCombo.SelectedItem)?.Content?.ToString() ?? "OLS";
+
+                _vm.IsBusy = true;
+                try
+                {
+                    await _matlabService.Build2DAsync(_x, _y, degree, method);
+                }
+                finally
+                {
+                    _vm.IsBusy = false;
+                }
+            }
+            else if (Toggle3D.IsChecked == true)
+            {
+                var vm3d = _vm.ThreeD;
+                if (vm3d == null || _table == null)
+                {
+                    MessageBox.Show("Нет данных для 3D", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var xyz = LoadArraysFromTableFor3D();
+                if (xyz == null)
+                {
+                    MessageBox.Show("Не удалось получить 3D данные", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                var (xVals, yVals, zVals) = xyz.Value;
+                bool isPlane = vm3d.SurfaceType?.Contains("Плоскость") == true;
+
+                _vm.IsBusy = true;
+                try
+                {
+                    await _matlabService.Build3DAsync(xVals, yVals, zVals, isPlane);
+                }
+                finally
+                {
+                    _vm.IsBusy = false;
+                }
+            }
+            else
+            {
+                MessageBox.Show("Не выбран режим (2D или 3D)", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 

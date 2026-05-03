@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
@@ -9,6 +9,8 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Core\MatLab\regress2d.m" />
+    <None Remove="Core\MatLab\regress3d.m" />
     <None Remove="Images\help_2d_poly.png" />
     <None Remove="Images\help_3d_plane.png" />
     <None Remove="Images\help_3d_quadric.png" />
@@ -17,9 +19,28 @@
     <None Remove="Images\help_methods.png" />
     <None Remove="Images\help_save_dialog.png" />
   </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="MLApp">
+      <WrapperTool>tlbimp</WrapperTool>
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>1</VersionMajor>
+      <Guid>c36e46ab-6a81-457b-9f91-a7719a06287f</Guid>
+      <Lcid>0</Lcid>
+      <Isolated>false</Isolated>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Core\MatLab\regress2d.m">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Core\MatLab\regress3d.m">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EPPlus" Version="7.3.2" />
+    <PackageReference Include="EPPlus" Version="8.5.4" />
     <PackageReference Include="HelixToolkit.Wpf" Version="3.1.2" />
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />

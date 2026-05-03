@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"
         AllowsTransparency="True"
+        Icon="/Images/icon_exe.ico"
         Background="Transparent"
         WindowStartupLocation="CenterScreen"
         Width="480" Height="320">
@@ -46,7 +47,7 @@
 
             <!-- Основной заголовок и автор -->
             <StackPanel Grid.Row="4" HorizontalAlignment="Center">
-                <TextBlock Text="Моргавчук Н.И., гр. 10701225"
+                <TextBlock Text="Моргавчук Н.И., гр. 10701224"
                            FontSize="11" Foreground="#FFB0D0F0" 
                            HorizontalAlignment="Center"/>
             </StackPanel>

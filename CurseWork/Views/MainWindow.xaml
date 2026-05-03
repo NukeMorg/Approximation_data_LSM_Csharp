@@ -7,6 +7,7 @@
         xmlns:local="clr-namespace:CurseWork"
         xmlns:conv="clr-namespace:CurseWork.Core.Converters"
         Title="Регрессионный анализ"
+
         Width="1200" Height="700" WindowStartupLocation="CenterScreen">
 
     <Window.InputBindings>

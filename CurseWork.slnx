@@ -1,3 +1,4 @@
 <Solution>
-  <Project Path="CurseWork.csproj" Id="f46ba161-0fa5-4af8-9c38-b9aca5d5933b" />
+  <Project Path="CurseWork.Core/CurseWork.Core.csproj" Id="6e337e01-1166-41ed-8672-5ddda8d1a370" />
+  <Project Path="CurseWork\CurseWork.csproj" Id="f46ba161-0fa5-4af8-9c38-b9aca5d5933b" />
 </Solution>

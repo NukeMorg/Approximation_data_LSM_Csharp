@@ -18,6 +18,7 @@
     <None Remove="Images\help_main_window.png" />
     <None Remove="Images\help_methods.png" />
     <None Remove="Images\help_save_dialog.png" />
+    <None Remove="Images\icon_exe.ico" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="MLApp">
@@ -49,6 +50,10 @@
     <PackageReference Include="Dapper" Version="2.1.72" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />
     <PackageReference Include="PropertyTools.Wpf" Version="3.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CurseWork.Core\CurseWork.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -88,5 +93,6 @@
     <Resource Include="Images\help_save_dialog.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
+    <Resource Include="Images\icon_exe.ico" />
   </ItemGroup>
 </Project>

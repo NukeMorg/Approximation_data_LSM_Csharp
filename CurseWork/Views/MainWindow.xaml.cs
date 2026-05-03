@@ -7,6 +7,7 @@ using CurseWork.ViewModels;
 using CurseWork.Views;
 using HelixToolkit.Wpf;
 using Microsoft.Win32;
+using OfficeOpenXml;
 using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
@@ -51,6 +52,7 @@ namespace CurseWork
 
         public MainWindow()
         {
+            ExcelPackage.License.SetNonCommercialPersonal("CurseWork");
             InitializeComponent();
 
             _matlabService = new MatlabService(Dispatcher);

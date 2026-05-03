@@ -16,6 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Media.Media3D;
@@ -42,6 +43,11 @@ namespace CurseWork
         private double[]? _yPred;
         private RegressionMetrics? _metrics;
         private LineSeries? _modelLineSeries;
+
+        public static RoutedCommand ExportPlotCommand = new RoutedCommand("ExportPlot", typeof(MainWindow));
+        public static RoutedCommand BuildModelCommand = new RoutedCommand("BuildModel", typeof(MainWindow));
+        public static RoutedCommand CloseDataCommand = new RoutedCommand("CloseData", typeof(MainWindow));
+        public static RoutedCommand ExitCommand = new RoutedCommand("Exit", typeof(MainWindow));
 
         public MainWindow()
         {
@@ -157,6 +163,21 @@ namespace CurseWork
 
             Closed += (s, e) => _matlabService.Dispose();
 
+        }
+
+        private void BuildCurrentModel(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (Toggle2D.IsChecked == true)
+            {
+                // Вызываем асинхронный метод без ожидания (fire-and-forget), можно обернуть в try-catch
+                _ = Build2DModelAsync();
+            }
+            else if (Toggle3D.IsChecked == true)
+            {
+                // Для 3D команда уже привязана через Binding команды в XAML к BuildModelCommand в 3D ViewModel,
+                // но здесь можно выполнить принудительно
+                _vm.ThreeD?.BuildModelCommand.Execute(null);
+            }
         }
 
         // Единый обработчик – сам определяет 2D или 3D

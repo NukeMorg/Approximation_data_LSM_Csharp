@@ -4,19 +4,40 @@
         xmlns:oxy="http://oxyplot.org/wpf"
         xmlns:h="http://helix-toolkit.org/wpf"
         xmlns:pt="clr-namespace:PropertyTools.Wpf;assembly=PropertyTools.Wpf"
+        xmlns:local="clr-namespace:CurseWork"
         xmlns:conv="clr-namespace:CurseWork.Core.Converters"
         Title="Регрессионный анализ"
         Width="1200" Height="700" WindowStartupLocation="CenterScreen">
+
+    <Window.InputBindings>
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="ApplicationCommands.Open"/>
+        <KeyBinding Key="S" Modifiers="Ctrl" Command="ApplicationCommands.Save"/>
+        <KeyBinding Key="E" Modifiers="Ctrl" Command="{x:Static local:MainWindow.ExportPlotCommand}"/>
+        <KeyBinding Key="F5" Command="{x:Static local:MainWindow.BuildModelCommand}"/>
+        <KeyBinding Key="W" Modifiers="Ctrl" Command="{x:Static local:MainWindow.CloseDataCommand}"/>
+        <KeyBinding Key="Q" Modifiers="Ctrl" Command="{x:Static local:MainWindow.ExitCommand}"/>
+    </Window.InputBindings>
+
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Open" Executed="MenuOpen_OnClick" />
+        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveReport_Click" />
+        <CommandBinding Command="{x:Static local:MainWindow.ExportPlotCommand}" Executed="ExportPlot_Click" />
+        <CommandBinding Command="{x:Static local:MainWindow.BuildModelCommand}" Executed="BuildCurrentModel" />
+        <CommandBinding Command="{x:Static local:MainWindow.CloseDataCommand}" Executed="MenuClose_OnClick" />
+        <CommandBinding Command="{x:Static local:MainWindow.ExitCommand}" Executed="MenuExit_OnClick" />
+    </Window.CommandBindings>
+
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Файл">
-                <MenuItem Header="Открыть данные" Click="MenuOpen_OnClick"/>
+                <MenuItem Header="Открыть данные" Command="ApplicationCommands.Open" InputGestureText="Ctrl+O"/>
                 <Separator/>
-                <MenuItem Header="Сохранить отчёт" Click="SaveReport_Click"/>
-                <MenuItem Header="Экспорт графика" Click="ExportPlot_Click"/>
+                <MenuItem Header="Сохранить отчёт" Command="ApplicationCommands.Save" InputGestureText="Ctrl+S"/>
+                <MenuItem Header="Экспорт графика" Command="{x:Static local:MainWindow.ExportPlotCommand}" InputGestureText="Ctrl+E"/>
+                <MenuItem Header="Построить модель" Command="{x:Static local:MainWindow.BuildModelCommand}" InputGestureText="F5"/>
                 <Separator/>
-                <MenuItem Header="Закрыть" Click="MenuClose_OnClick"/>
-                <MenuItem Header="Выход" Click="MenuExit_OnClick"/>
+                <MenuItem Header="Закрыть данные" Command="{x:Static local:MainWindow.CloseDataCommand}" InputGestureText="Ctrl+W"/>
+                <MenuItem Header="Выход" Command="{x:Static local:MainWindow.ExitCommand}" InputGestureText="Ctrl+Q"/>
             </MenuItem>
             <MenuItem Header="Справка">
                 <MenuItem Header="Помощь" Click="HelpMenuItem_Click"/>
@@ -24,7 +45,6 @@
                 <MenuItem Header="О программе" Click="AboutMenuItem_Click"/>
             </MenuItem>
             <MenuItem Header="Matlab" Click="MatlabBuild_Click" />
-
         </Menu>
 
         <StatusBar DockPanel.Dock="Bottom">
@@ -123,7 +143,7 @@
                             <StackPanel>
                                 <TextBlock Text="Тип поверхности"/>
                                 <ComboBox x:Name="SurfaceTypeCombo" Height="24" Margin="0,2,0,6"
-                                          SelectedItem="{Binding SurfaceType}">
+                                          SelectedIndex="0"  SelectedItem="{Binding SurfaceType}">
                                     <ComboBoxItem Content="Плоскость"/>
                                     <ComboBoxItem Content="Квадрика (полная)"/>
                                 </ComboBox>

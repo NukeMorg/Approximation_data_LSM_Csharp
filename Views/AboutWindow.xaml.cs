@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Input;
 
 namespace CurseWork.Views
 {
@@ -9,9 +10,15 @@ namespace CurseWork.Views
             InitializeComponent();
         }
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            Close();
+            if (e.Key == Key.Escape)
+            {
+                Close();
+                e.Handled = true;
+            }
         }
     }
 }

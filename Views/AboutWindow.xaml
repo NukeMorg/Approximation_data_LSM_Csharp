@@ -1,14 +1,35 @@
 ﻿<Window x:Class="CurseWork.Views.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="О программе" Width="400" Height="250"
-        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+        Title="О программе" Width="480" Height="380"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,4"/>
+        </Style>
+    </Window.Resources>
     <StackPanel VerticalAlignment="Center" Margin="20">
-        <TextBlock Text="Регрессионный анализ" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
-        <TextBlock Text="Версия 1.0.0" Margin="0,0,0,5"/>
-        <TextBlock Text="Программа для полиномиальной и 3D регрессии." Margin="0,0,0,10"/>
-        <TextBlock Text="Разработчик: Ваше имя / команда" Margin="0,0,0,10"/>
+        <TextBlock Text="Регрессионный анализ" FontSize="20" FontWeight="Bold" Margin="0,0,0,8"/>
+        <TextBlock Text="Версия 1.0.0 (сборка 2025.05)"/>
+        <TextBlock Text="Белорусский национальный технический университет"/>
+        <TextBlock Text="Факультет информационных технологий и робототехники"/>
+        <TextBlock Text="Программа реализует методы наименьших квадратов (OLS, WLS, GLS)"/>
+        <TextBlock Text="для полиномиальной (2D) и поверхностной (3D) регрессии."/>
+        <TextBlock Text=" " />
+        <TextBlock Text="Основные возможности:" FontWeight="SemiBold"/>
+        <TextBlock Text="• Загрузка данных из CSV, TXT, Excel, SQLite"/>
+        <TextBlock Text="• Редактирование данных в таблице предпросмотра"/>
+        <TextBlock Text="• Автоматический подбор степени полинома"/>
+        <TextBlock Text="• Визуализация 2D-графиков и 3D-поверхностей"/>
+        <TextBlock Text="• Экспорт отчётов в Word, Excel, PDF, CSV, SQLite"/>
+        <TextBlock Text="• Интеграция с MATLAB"/>
+        <TextBlock Text=" " />
+        <TextBlock Text="Разработчик: Моргавчук Н.И., гр. 10701225" Margin="0,6,0,0"/>
         <TextBlock Text="© 2025 Все права защищены" Foreground="Gray"/>
-        <Button Content="Закрыть" Width="80" Margin="0,15,0,0" Click="CloseButton_Click"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="Закрыть (Esc)" Width="100" Click="CloseButton_Click" IsCancel="True"/>
+        </StackPanel>
     </StackPanel>
 </Window>

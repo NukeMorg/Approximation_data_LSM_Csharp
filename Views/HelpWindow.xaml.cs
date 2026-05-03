@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -11,8 +12,9 @@ namespace CurseWork.Views
         public HelpWindow()
         {
             InitializeComponent();
-            // Показываем введение при загрузке
             ShowHelp("intro");
+            // Установка фокуса на дерево для навигации
+            HelpTree.Focus();
         }
 
         private void HelpTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -20,6 +22,25 @@ namespace CurseWork.Views
             if (e.NewValue is TreeViewItem item && item.Tag is string tag)
             {
                 ShowHelp(tag);
+            }
+        }
+
+        private void HelpTree_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && HelpTree.SelectedItem is TreeViewItem item && item.Tag is string)
+            {
+                // Enter автоматически раскрывает/сворачивает ветку, но мы хотим показать содержимое.
+                // Можно оставить как есть, SelectedItemChanged уже сработает.
+            }
+            // Стрелки вверх/вниз работают по умолчанию.
+        }
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                Close();
+                e.Handled = true;
             }
         }
 
@@ -31,53 +52,49 @@ namespace CurseWork.Views
             {
                 case "intro":
                     AddTitle("Добро пожаловать в программу «Регрессионный анализ»!");
-                    AddParagraph("Это приложение предназначено для построения регрессионных моделей: полиномиальной (2D) и поверхностей (3D).");
+                    AddParagraph("Это приложение для построения регрессионных моделей: полиномиальной (2D) и поверхностей (3D).");
+                    AddParagraph("Программа разработана в рамках курсовой работы в БНТУ, факультет ИТиР.");
                     AddImage("Images/help_main_window.png", "Главное окно программы");
                     break;
 
                 case "data":
                     AddTitle("Загрузка и подготовка данных");
-                    AddParagraph("Программа поддерживает CSV, TXT, Excel (.xlsx) и SQLite базы данных.");
+                    AddParagraph("Поддерживаются форматы: CSV, TXT, Excel (.xlsx) и SQLite базы данных.");
+                    AddParagraph("Выберите источник, укажите, содержит ли первая строка заголовки, и назначьте столбцы для осей X, Y (и Z для 3D).");
+                    AddParagraph("После загрузки данные отображаются в таблице предпросмотра. Их можно редактировать прямо на месте – изменения можно сохранить обратно в исходный файл.");
                     AddImage("Images/help_data_load.png", "Диалог выбора файла");
-                    AddParagraph("Выберите нужные столбцы для осей X, Y (и Z в 3D‑режиме). Данные можно править прямо в таблице предпросмотра.");
                     break;
 
                 case "interface":
                     AddTitle("Интерфейс программы");
-                    AddParagraph("Главное окно состоит из трёх основных областей.");
+                    AddParagraph("Главное окно состоит из трёх основных областей:");
                     AddImage("Images/help_main_window.png", "Общий вид главного окна");
-
                     AddParagraph("• Меню «Файл»: открытие данных, сохранение отчёта, экспорт графика, закрытие данных, выход.");
                     AddParagraph("• Меню «Справка»: помощь и информация о программе.");
                     AddParagraph("• Левая панель: настройки источника данных, предпросмотр, параметры модели (2D/3D).");
                     AddParagraph("• Центральная область: 2D-график или 3D-сцена с кнопками переключения режимов.");
-                    AddParagraph("• Правая панель: результаты расчёта (уравнение, коэффициенты, метрики, предсказания).");
+                    AddParagraph("• Правая панель: результаты расчёта – уравнение, коэффициенты, метрики, предсказанные значения.");
                     AddParagraph("• Строка состояния (внизу): текущий статус, индикатор загрузки и кнопка «Выход».");
-
-                    AddTitle("Кнопка «Выход»");
-                    AddParagraph("В правой части строки состояния расположена кнопка «Выход» для быстрого завершения работы приложения.");
-
-                    AddTitle("Чекбокс «Показать сетку»");
-                    AddParagraph("При работе в 2D-режиме можно включить или отключить координатную сетку на графике.");
                     break;
 
                 case "poly":
                     AddTitle("Полиномиальная регрессия");
                     AddParagraph("Модель: y = a₀ + a₁·x + a₂·x² + ...");
+                    AddParagraph("Степень полинома задаётся ползунком (от 1 до 10) или вручную в текстовом поле.");
                     AddImage("Images/help_2d_poly.png", "2D панель параметров");
                     break;
 
                 case "methods":
                     AddTitle("Методы регрессии");
                     AddParagraph("• OLS – обычный метод наименьших квадратов");
-                    AddParagraph("• WLS – взвешенный МНК (требуется файл весов)");
-                    AddParagraph("• GLS – обобщённый МНК (требуется ковариационная матрица)");
+                    AddParagraph("• WLS – взвешенный МНК (дополнительно загружается файл весов)");
+                    AddParagraph("• GLS – обобщённый МНК (загружается ковариационная матрица)");
                     AddImage("Images/help_methods.png", "Выбор метода в интерфейсе");
                     break;
 
                 case "auto":
                     AddTitle("Автоматический подбор степени");
-                    AddParagraph("При включённой опции программа перебирает степени полинома и выбирает ту, которая даёт максимальный скорректированный R².");
+                    AddParagraph("При включённой опции программа перебирает степени от 1 до максимальной и выбирает ту, которая даёт наибольший скорректированный R².");
                     break;
 
                 case "plane":
@@ -94,9 +111,22 @@ namespace CurseWork.Views
 
                 case "save":
                     AddTitle("Сохранение и экспорт результатов");
-                    AddParagraph("Отчёты можно сохранить в форматах Word, Excel, текстовый, CSV или SQLite.");
+                    AddParagraph("Отчёты можно сохранить в форматах: Word, Excel, PDF, текстовый, CSV, SQLite.");
+                    AddParagraph("Также доступен экспорт изображения графика (2D – PNG/SVG, 3D – PNG).");
                     AddImage("Images/help_save_dialog.png", "Диалог сохранения отчёта");
-                    AddParagraph("Также отдельно можно экспортировать изображение графика (2D – PNG/SVG, 3D – PNG).");
+                    break;
+
+                case "shortcuts":
+                    AddTitle("Горячие клавиши");
+                    AddParagraph("В главном окне доступны следующие комбинации:");
+                    AddParagraph("Ctrl+O – открыть файл с данными");
+                    AddParagraph("Ctrl+S – сохранить отчёт");
+                    AddParagraph("Ctrl+E – экспорт графика (2D/3D)");
+                    AddParagraph("F5 – построить модель (2D или 3D) в зависимости от активного режима");
+                    AddParagraph("Ctrl+W – закрыть текущий набор данных");
+                    AddParagraph("Ctrl+Q – выход из программы");
+                    AddParagraph("Esc – закрыть диалоговые окна (Справка, О программе)");
+                    AddParagraph("В 2D-режиме: двойной клик по графику сбрасывает масштаб.");
                     break;
 
                 default:
@@ -105,7 +135,7 @@ namespace CurseWork.Views
             }
         }
 
-        // Вспомогательные методы для добавления элементов
+        // Вспомогательные методы (без изменений)
         private void AddTitle(string text)
         {
             HelpContentPanel.Children.Add(new TextBlock
@@ -132,19 +162,17 @@ namespace CurseWork.Views
         {
             try
             {
-                // Изображения должны быть добавлены в проект как Resource
                 var uri = new Uri($"pack://application:,,,/{resourcePath}", UriKind.Absolute);
                 var bitmap = new BitmapImage(uri);
                 var img = new Image
                 {
                     Source = bitmap,
-                    Stretch = Stretch.Uniform,          // сохраняем пропорции
-                    StretchDirection = StretchDirection.DownOnly, // только уменьшать, не увеличивать
+                    Stretch = Stretch.Uniform,
+                    StretchDirection = StretchDirection.DownOnly,
                     MaxWidth = 600,
                     MaxHeight = 400,
                     Margin = new Thickness(0, 4, 0, 10)
                 };
-                // Дополнительно улучшим качество масштабирования
                 RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                 HelpContentPanel.Children.Add(img);
 
@@ -161,7 +189,6 @@ namespace CurseWork.Views
             }
             catch
             {
-                // Если изображение не найдено – просто пропускаем
                 HelpContentPanel.Children.Add(new TextBlock
                 {
                     Text = $"[Изображение отсутствует: {description}]",

@@ -1,8 +1,8 @@
 ﻿using OfficeOpenXml;
-using OfficeOpenXml.Style;
 using OfficeOpenXml.Drawing.Chart;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace CurseWork.Core.Report.Strategies
 {
@@ -13,15 +13,16 @@ namespace CurseWork.Core.Report.Strategies
             if (File.Exists(filePath))
                 File.Delete(filePath);
 
+            // EPPlus 8+ лицензия (обязательно один раз в приложении, но оставил здесь для автономности)
+            ExcelPackage.License.SetNonCommercialPersonal("CurseWork");
 
             using var package = new ExcelPackage(new FileInfo(filePath));
 
-            // ================= РЕЗУЛЬТАТЫ =================
+            // ================= 1. РЕЗУЛЬТАТЫ =================
             var wsInfo = package.Workbook.Worksheets.Add("Результаты");
 
             wsInfo.Cells["A1"].Value = "Параметр";
             wsInfo.Cells["B1"].Value = "Значение";
-
             wsInfo.Cells["A1:B1"].Style.Font.Bold = true;
 
             int r = 2;
@@ -33,7 +34,7 @@ namespace CurseWork.Core.Report.Strategies
 
             wsInfo.Cells.AutoFitColumns();
 
-            // ================= КОЭФФИЦИЕНТЫ =================
+            // ================= 2. КОЭФФИЦИЕНТЫ =================
             var wsCoef = package.Workbook.Worksheets.Add("Коэффициенты");
 
             wsCoef.Cells["A1"].Value = "Индекс";
@@ -48,7 +49,7 @@ namespace CurseWork.Core.Report.Strategies
 
             wsCoef.Cells.AutoFitColumns();
 
-            // ================= ПРЕДСКАЗАНИЯ =================
+            // ================= 3. ПРЕДСКАЗАНИЯ =================
             var wsPred = package.Workbook.Worksheets.Add("Предсказания");
 
             wsPred.Cells["A1"].Value = "X";
@@ -59,43 +60,44 @@ namespace CurseWork.Core.Report.Strategies
 
             for (int i = 0; i < count; i++)
             {
-                var p = result.Predictions[i];
-                wsPred.Cells[i + 2, 1].Value = p.X;
-                wsPred.Cells[i + 2, 2].Value = p.Y;
+                wsPred.Cells[i + 2, 1].Value = result.Predictions[i].X;
+                wsPred.Cells[i + 2, 2].Value = result.Predictions[i].Y;
             }
 
             wsPred.Cells.AutoFitColumns();
 
-            // ================= ГРАФИК =================
+            // ================= 4. ГРАФИК (РАБОЧИЙ ВАРИАНТ) =================
             if (!result.Is3D && count > 0)
             {
-                var wsChart = package.Workbook.Worksheets.Add("График");
-
-                // копируем данные
-                wsChart.Cells["A1"].Value = "X";
-                wsChart.Cells["B1"].Value = "Y";
+                // 1) Лист с данными (скрытый)
+                var wsData = package.Workbook.Worksheets.Add("ChartData");
 
                 for (int i = 0; i < count; i++)
                 {
-                    var p = result.Predictions[i];
-                    wsChart.Cells[i + 2, 1].Value = p.X;
-                    wsChart.Cells[i + 2, 2].Value = p.Y;
+                    wsData.Cells[i + 1, 1].Value = result.Predictions[i].X;
+                    wsData.Cells[i + 1, 2].Value = result.Predictions[i].Y;
                 }
 
-                var chart = wsChart.Drawings.AddChart("chart", eChartType.XYScatterLines);
+                wsData.Hidden = eWorkSheetHidden.VeryHidden;
+
+                // 2) Лист графика (пустой визуально)
+                var wsChart = package.Workbook.Worksheets.Add("График");
+
+                var chart = wsChart.Drawings.AddChart("RegressionChart", eChartType.XYScatterLines);
 
                 chart.Title.Text = "График модели";
-
-                var series = chart.Series.Add(
-                    wsChart.Cells[2, 2, count + 1, 2], // Y
-                    wsChart.Cells[2, 1, count + 1, 1]  // X
-                );
-
-                chart.SetPosition(1, 0, 2, 0);
-                chart.SetSize(800, 500);
+                chart.SetPosition(1, 0, 1, 0);
+                chart.SetSize(900, 500);
 
                 chart.XAxis.Title.Text = "X";
                 chart.YAxis.Title.Text = "Y";
+
+                // ВАЖНО: ссылка на ДРУГОЙ лист
+                var xRange = wsData.Cells[1, 1, count, 1];
+                var yRange = wsData.Cells[1, 2, count, 2];
+
+                var series = chart.Series.Add(yRange, xRange);
+                series.Header = "Модель";
             }
 
             package.Save();

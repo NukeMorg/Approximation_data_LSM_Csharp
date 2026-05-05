@@ -36,6 +36,9 @@ namespace CurseWork
         private string? _sourcePath;
         private bool _tableModified;
 
+        private int _lastValidDegree = 3;       // последнее валидное значение
+        private bool _degreeInvalid;            // признак некорректного ввода
+
         // 2D данные
         private double[]? _x, _y;
         private double[]? _weights;
@@ -54,6 +57,8 @@ namespace CurseWork
         {
             ExcelPackage.License.SetNonCommercialPersonal("CurseWork");
             InitializeComponent();
+
+            _lastValidDegree = 3;
 
             _matlabService = new MatlabService(Dispatcher);
 
@@ -773,15 +778,39 @@ namespace CurseWork
         private void DegreeTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (DegreeSlider == null) return;
-            if (int.TryParse(DegreeTextBox.Text, out int degree) && degree >= 1)
+
+            if (int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int degree) && degree >= 1)
             {
                 if (Math.Abs(DegreeSlider.Value - degree) > 0.1)
                     DegreeSlider.Value = degree;
+
+                _lastValidDegree = degree;
+                _degreeInvalid = false;
+                // Убираем красную рамку
+                DegreeTextBox.BorderBrush = SystemColors.ControlDarkBrush;
+                DegreeTextBox.ToolTip = null;
+                _vm.StatusText = "Готово";
+            }
+            else
+            {
+                // Некорректный ввод
+                _degreeInvalid = true;
+                DegreeTextBox.BorderBrush = Brushes.Red;
+                DegreeTextBox.ToolTip = "Введите целое число от 1 до 10";
+                _vm.StatusText = "ОШИБКА: недопустимая степень полинома!";
             }
         }
 
-        private int ParseDegree() =>
-            int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d >= 1 ? d : 3;
+        private int ParseDegree()
+        {
+            if (_degreeInvalid)
+            {
+                MessageBox.Show("Введена некорректная степень полинома. Будет использована последняя валидная степень (" + _lastValidDegree + ").",
+                                "Ошибка ввода", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return _lastValidDegree;
+            }
+            return int.TryParse(DegreeTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int d) && d >= 1 ? d : _lastValidDegree;
+        }
 
         private int AutoSelectDegree(double[] x, double[] y, int maxDegree, out double bestMetric)
         {
